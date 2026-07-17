@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative, basename, extname } from "node:path";
+import { analyzeProject, type ProjectAnalysis } from "./ast/analysis.ts";
 import type { LoadedFile } from "./types.ts";
 
 const IGNORED_DIRS = new Set([
@@ -86,4 +87,8 @@ export function loadFiles(root: string, relPaths: string[]): LoadedFile[] {
     content: readFileSync(join(root, p), "utf8"),
     isGitTracked: tracked.has(p),
   }));
+}
+
+export function analyzeFiles(files: LoadedFile[]): ProjectAnalysis {
+  return analyzeProject(files.map(({ path, content }) => ({ path, content })));
 }

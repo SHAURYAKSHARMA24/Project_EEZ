@@ -1,8 +1,9 @@
 # preflight (working name)
 
-Fast, deterministic security preflight for AI-written TypeScript. It has zero
-runtime dependencies and runs entirely locally: your code never leaves your
-machine.
+Fast, deterministic security preflight for AI-written TypeScript. It installs
+one pinned TypeScript runtime dependency and runs entirely locally: your code
+never leaves your machine. TypeScript stays external to `dist` and resolves
+from preflight's own installation, never from the project being scanned.
 
 `preflight` is still a working name. This repository is not published to npm.
 
@@ -71,9 +72,9 @@ npm run ci
 ```
 
 It type-checks, tests, builds, verifies `npm pack --dry-run`, installs a locally
-packed tarball to exercise its bin, and scans this repository with the built
-CLI. The individual self-scan is available as `npm run check:self`; the package
-smoke test is `npm run package:smoke`.
+packed tarball to exercise its bin and a known M1a finding, and scans this
+repository with the built CLI. The individual self-scan is available as
+`npm run check:self`; the package smoke test is `npm run package:smoke`.
 
 GitHub Actions runs this same workflow for `push` and `pull_request` on Node
 20 for Ubuntu and Windows, with read-only repository permissions.

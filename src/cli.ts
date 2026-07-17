@@ -3,7 +3,7 @@ import { parseArgs } from "node:util";
 import { pathToFileURL } from "node:url";
 import { realpathSync, statSync } from "node:fs";
 import { resolve } from "node:path";
-import { collectFiles, loadFiles } from "./walk.ts";
+import { analyzeFiles, collectFiles, loadFiles } from "./walk.ts";
 import { runRules } from "./engine.ts";
 import { renderSober } from "./report/sober.ts";
 import { renderJson } from "./report/json.ts";
@@ -105,7 +105,8 @@ export function run(argv: string[], cwd: string): { code: number; output: string
     command = resolution.command;
 
     const files = loadFiles(resolution.root, collectFiles(resolution.root));
-    const { findings, checkFailures, errors, suppressed } = runRules(files, allRules);
+    const analysis = analyzeFiles(files);
+    const { findings, checkFailures, errors, suppressed } = runRules(files, allRules, analysis);
 
     const shown = command === "audit" ? findings : findings.filter((f) => f.tier === "check");
     const output = json

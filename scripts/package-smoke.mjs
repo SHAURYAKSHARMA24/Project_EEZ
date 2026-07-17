@@ -1,7 +1,8 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -34,6 +35,11 @@ function runNpm(args, cwd) {
   return result.stdout;
 }
 
+function isWithin(root, candidate) {
+  const path = relative(root, candidate);
+  return path === "" || (path !== ".." && !path.startsWith(`..${sep}`) && !isAbsolute(path));
+}
+
 try {
   const builtCli = join(repoRoot, "dist", "cli.js");
   if (!existsSync(builtCli)) {
@@ -62,6 +68,16 @@ try {
     installRoot,
   );
 
+  const installedPreflightDir = join(installRoot, "node_modules", "preflight");
+  const installedCli = join(installedPreflightDir, "dist", "cli.js");
+  if (!existsSync(installedCli)) {
+    throw new Error("The installed package is missing dist/cli.js.");
+  }
+  const installedBundle = readFileSync(installedCli, "utf8");
+  if (!/from\s+["']typescript["']/.test(installedBundle)) {
+    throw new Error("The installed CLI does not retain its external TypeScript package import.");
+  }
+
   const binName = process.platform === "win32" ? "preflight.cmd" : "preflight";
   if (!existsSync(join(installRoot, "node_modules", ".bin", binName))) {
     throw new Error("The installed package did not create the preflight bin entry.");
@@ -74,6 +90,53 @@ try {
 
   writeFileSync(join(cleanRoot, "clean.ts"), "export const clean = true;\n");
   runNpm(["exec", "--", "preflight", "check", cleanRoot], installRoot);
+
+  writeFileSync(join(cleanRoot, "vulnerable.ts"), `
+import { generateText } from "ai";
+import { exec } from "node:child_process";
+async function vulnerable() {
+  const result = await generateText({ prompt: "command" });
+  exec(result.text);
+}
+void vulnerable;
+`);
+  const vulnerable = spawnSync(
+    process.execPath,
+    [installedCli, "check", cleanRoot, "--json"],
+    { cwd: installRoot, encoding: "utf8", windowsHide: true },
+  );
+  if (vulnerable.error || vulnerable.status !== 1) {
+    throw new Error("The installed CLI did not reject the known M1a vulnerability.");
+  }
+  let report;
+  try {
+    report = JSON.parse(vulnerable.stdout);
+  } catch {
+    throw new Error("The installed CLI did not return valid JSON for the vulnerable scan.");
+  }
+  if (
+    !Array.isArray(report.findings)
+    || report.findings.length !== 1
+    || report.findings[0]?.ruleId !== "llm-output-to-shell"
+  ) {
+    throw new Error("The installed CLI did not report exactly one M1a finding.");
+  }
+
+  const requireFromPackage = createRequire(join(installedPreflightDir, "package.json"));
+  const resolvedTypeScript = realpathSync(requireFromPackage.resolve("typescript"));
+  const installReal = realpathSync(installRoot);
+  const repoReal = realpathSync(repoRoot);
+  const allowedTypeScriptRoots = [
+    join(installReal, "node_modules", "typescript"),
+    join(installReal, "node_modules", "preflight", "node_modules", "typescript"),
+  ].filter(existsSync).map((path) => realpathSync(path));
+  if (
+    !allowedTypeScriptRoots.some((root) => isWithin(root, resolvedTypeScript))
+    || !isWithin(installReal, resolvedTypeScript)
+    || isWithin(repoReal, resolvedTypeScript)
+  ) {
+    throw new Error("The installed package did not resolve TypeScript from its isolated installation.");
+  }
   console.log("Package smoke test passed.");
 } finally {
   rmSync(tempRoot, { recursive: true, force: true });

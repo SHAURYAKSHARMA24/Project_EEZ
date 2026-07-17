@@ -27,6 +27,49 @@ afterEach(() => {
 });
 
 describe("run", () => {
+  it("detects OpenAI Responses output reaching exec through the real CLI path", () => {
+    const fixture = makeTemp("preflight-openai-shell-");
+    writeFileSync(join(fixture, "vulnerable.ts"), `
+import OpenAI from "openai";
+import { exec } from "node:child_process";
+async function vulnerable() {
+  const client = new OpenAI();
+  const response = await client.responses.create({ input: "command" });
+  exec(response.output_text);
+}
+`);
+
+    const result = run(["check", fixture, "--json"], fixture);
+    const payload = JSON.parse(result.output);
+    expect(result.code).toBe(1);
+    expect(payload.findings).toHaveLength(1);
+    expect(payload.findings[0]).toMatchObject({
+      ruleId: "llm-output-to-shell",
+      source: "OpenAI Responses output_text",
+    });
+  });
+
+  it("detects Vercel generateText output reaching exec through the real CLI path", () => {
+    const fixture = makeTemp("preflight-vercel-shell-");
+    writeFileSync(join(fixture, "vulnerable.ts"), `
+import { generateText } from "ai";
+import { exec } from "node:child_process";
+async function vulnerable() {
+  const result = await generateText({ prompt: "command" });
+  exec(result.text);
+}
+`);
+
+    const result = run(["check", fixture, "--json"], fixture);
+    const payload = JSON.parse(result.output);
+    expect(result.code).toBe(1);
+    expect(payload.findings).toHaveLength(1);
+    expect(payload.findings[0]).toMatchObject({
+      ruleId: "llm-output-to-shell",
+      source: "Vercel AI SDK generateText().text",
+    });
+  });
+
   it("check exits 1 and reports the finding", () => {
     const res = run(["check"], root);
     expect(res.code).toBe(1);

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { runRules } from "../src/engine.ts";
 import { renderJson } from "../src/report/json.ts";
 import { renderSober } from "../src/report/sober.ts";
+import { analyzeProject } from "../src/ast/analysis.ts";
 import type { Rule, Finding } from "../src/types.ts";
 
 const alwaysFires: Rule = {
@@ -35,6 +36,26 @@ describe("runRules", () => {
     const res = runRules([{ path: "a.ts", content: "x", isGitTracked: false }], [auditRule]);
     expect(res.findings).toHaveLength(1);
     expect(res.checkFailures).toHaveLength(0);
+  });
+
+  it("passes one supplied project analysis without changing LoadedFile data", () => {
+    const file = { path: "a.ts", content: "const value = true;", isGitTracked: false };
+    const analysis = analyzeProject([{ path: file.path, content: file.content }]);
+    let observed: unknown;
+    const observesAnalysis: Rule = {
+      id: "observes-analysis",
+      tier: "check",
+      appliesTo: () => true,
+      run: (ctx) => {
+        observed = ctx.analysis;
+        return [];
+      },
+    };
+
+    runRules([file], [observesAnalysis], analysis);
+
+    expect(observed).toBe(analysis);
+    expect(Object.keys(file).sort()).toEqual(["content", "isGitTracked", "path"]);
   });
 
   it("isolates rule failures without exposing their thrown content", () => {
