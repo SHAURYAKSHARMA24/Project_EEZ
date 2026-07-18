@@ -1,5 +1,9 @@
 # preflight (working name)
 
+[![CI](https://github.com/SHAURYAKSHARMA24/Project_EEZ/actions/workflows/ci.yml/badge.svg)](https://github.com/SHAURYAKSHARMA24/Project_EEZ/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+![Node](https://img.shields.io/badge/node-%E2%89%A520-brightgreen.svg)
+
 Fast, deterministic security preflight for AI-written TypeScript. It installs
 one pinned TypeScript runtime dependency and runs entirely locally: your code
 never leaves your machine. TypeScript stays external to `dist` and resolves
@@ -158,3 +162,19 @@ GitHub Actions runs this same workflow for `push` and `pull_request` on Node
 
 Additional trust-boundary gates, an `audit` tier for cloud/IAM/Firebase/
 Supabase, SARIF/reusable CI integrations, and richer policy configuration.
+
+## Contributing
+
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for
+prerequisites, development commands, the `npm run ci` release check, and the
+suppression-fixture conventions. Please also review the
+[Code of Conduct](CODE_OF_CONDUCT.md).
+
+## Security
+
+To report a vulnerability, use GitHub's private vulnerability reporting instead
+of a public issue. See [SECURITY.md](SECURITY.md) for details.
+
+## License
+
+[MIT](LICENSE) © 2026 Shaurya K Sharma

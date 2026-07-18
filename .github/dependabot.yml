@@ -1,0 +1,25 @@
+version: 2
+updates:
+  # npm dependencies (only TypeScript is a production dependency; the rest are
+  # dev tooling). Grouped so most weeks produce at most two PRs.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      production-dependencies:
+        dependency-type: "production"
+      development-dependencies:
+        dependency-type: "development"
+
+  # GitHub Actions used by the CI workflow, grouped into a single PR.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns:
+          - "*"
