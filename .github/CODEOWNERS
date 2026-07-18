@@ -1,0 +1,4 @@
+# Default owner for everything in this repository.
+# CODEOWNER review is intentionally not enforced while this is a
+# solo-maintainer project (the sole owner is also the PR author).
+* @SHAURYAKSHARMA24

@@ -1,0 +1,30 @@
+name: Feature request
+description: Suggest a new check, a new output, or an improvement.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        preflight aims to report only high-confidence security boundaries. Suggestions that keep
+        precision high (few false positives) are the most likely to be adopted.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What gap or pain are you trying to address?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What would you like preflight to do? Include an example if you can.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches you thought about, and why they fall short.
+    validations:
+      required: false
