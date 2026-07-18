@@ -8,6 +8,8 @@ import { llmOutputToShell } from "../../src/rules/llmOutputToShell.ts";
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), "positives");
 const matrix = [
   ["openai-exec.ts", "OpenAI Responses output_text", "child_process.exec"],
+  ["openai-exec-singleton.ts", "OpenAI Responses output_text", "child_process.exec"],
+  ["openai-exec-template.ts", "OpenAI Responses output_text", "child_process.exec"],
   ["openai-exec-sync.ts", "OpenAI Responses output_text", "child_process.execSync"],
   ["openai-eval.ts", "OpenAI Responses output_text", "global eval"],
   ["openai-function.ts", "OpenAI Responses output_text", "global Function"],

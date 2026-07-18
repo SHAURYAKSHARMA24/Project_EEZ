@@ -79,9 +79,22 @@ export function nearestOwner(node: Node): FunctionLikeDeclaration | SourceFile {
   return node.getSourceFile();
 }
 
+// Strip wrappers that expose the same runtime value as the expression they
+// enclose, so taint on the inner expression is taint on the whole. This covers
+// grouping parentheses, `await` (the awaited value is what propagates), and the
+// compiler-erased TypeScript assertions `x as T`, `<T>x`, `x!`, and
+// `x satisfies T`. Wrappers that can change the value at runtime (calls,
+// property access, binary operators, ...) are deliberately left intact.
 export function unwrapExpression(expression: Expression): Expression {
   let current = expression;
-  while (ts.isAwaitExpression(current) || ts.isParenthesizedExpression(current)) {
+  while (
+    ts.isAwaitExpression(current)
+    || ts.isParenthesizedExpression(current)
+    || ts.isAsExpression(current)
+    || ts.isTypeAssertionExpression(current)
+    || ts.isNonNullExpression(current)
+    || ts.isSatisfiesExpression(current)
+  ) {
     current = current.expression;
   }
   return current;

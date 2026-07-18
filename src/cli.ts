@@ -40,6 +40,19 @@ const HELP = [
   "  -v, --version  Print the installed version.",
 ].join("\n");
 
+// The single source of truth for the CLI option schema. `intendedCommand` and
+// the strict parse below both consume it so the two phases can never disagree
+// about which tokens are option values versus positionals.
+const CLI_OPTIONS = {
+  json: { type: "boolean", default: false },
+  format: { type: "string" },
+  report: { type: "string" },
+  output: { type: "string" },
+  staged: { type: "boolean", default: false },
+  help: { type: "boolean", short: "h", default: false },
+  version: { type: "boolean", short: "v", default: false },
+} as const;
+
 function isCommand(value: string): value is Command {
   return KNOWN_COMMANDS.has(value as Command);
 }
@@ -100,12 +113,24 @@ function diagnosticResult(command: Command, format: OutputFormat, message: strin
   };
 }
 
+// Determine which command the user intended, without validating anything, so a
+// later strict-parse or scan failure still exits with the correct code. Reusing
+// the real option schema in a tolerant pass means value-taking flags such as
+// `--format json` (space or `=` form, in any position) never leak their value
+// into the positional stream, and a value that merely spells "audit" is not
+// mistaken for the command. `audit` is the command only as the first positional.
 function intendedCommand(argv: string[]): Command {
-  for (const argument of argv) {
-    if (argument.startsWith("-")) continue;
-    return argument === "audit" ? "audit" : "check";
+  try {
+    const { positionals } = parseArgs({
+      args: argv,
+      options: CLI_OPTIONS,
+      allowPositionals: true,
+      strict: false,
+    });
+    return positionals[0] === "audit" ? "audit" : "check";
+  } catch {
+    return "check";
   }
-  return "check";
 }
 
 export function run(argv: string[], cwd: string): { code: number; output: string } {
@@ -116,15 +141,7 @@ export function run(argv: string[], cwd: string): { code: number; output: string
     const { values, positionals } = parseArgs({
       args: argv,
       allowPositionals: true,
-      options: {
-        json: { type: "boolean", default: false },
-        format: { type: "string" },
-        report: { type: "string" },
-        output: { type: "string" },
-        staged: { type: "boolean", default: false },
-        help: { type: "boolean", short: "h", default: false },
-        version: { type: "boolean", short: "v", default: false },
-      },
+      options: CLI_OPTIONS,
     });
     if (values.help && values.version) return { code: 2, output: USAGE };
     if (values.help) return { code: 0, output: HELP };

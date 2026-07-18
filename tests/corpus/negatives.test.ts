@@ -15,6 +15,8 @@ const expectedFixtures = [
   "local-generate-text.ts",
   "local-openai.ts",
   "logging.ts",
+  "module-openai-shadowed.ts",
+  "module-openai-unrelated.ts",
   "next-route.ts",
   "parameter-properties.ts",
   "reassigned-let.ts",
@@ -34,12 +36,12 @@ const expectedFixtures = [
 ] as const;
 
 describe("M1a precision corpus", () => {
-  it("contains exactly the 24 approved negative fixtures", () => {
+  it("contains exactly the 26 approved negative fixtures", () => {
     const actual = readdirSync(fixtureRoot)
       .filter((name) => /\.(?:cjs|js|jsx|mjs|ts|tsx)$/.test(name))
       .sort();
     expect(actual).toEqual([...expectedFixtures].sort());
-    expect(actual).toHaveLength(24);
+    expect(actual).toHaveLength(26);
   });
 
   it.each(expectedFixtures)("emits no finding for %s", (name) => {

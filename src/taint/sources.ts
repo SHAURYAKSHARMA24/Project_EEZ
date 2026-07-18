@@ -77,7 +77,7 @@ function openAiClientConstructor(checker: TypeChecker, expression: Expression): 
 function openAiResponsesCall(
   checker: TypeChecker,
   expression: Expression,
-  clients: ReadonlyMap<Symbol, SourceProvenance["owner"]>,
+  clients: ReadonlySet<Symbol>,
 ): CallExpression | null {
   const normalized = unwrapExpression(expression);
   if (!ts.isCallExpression(normalized)) return null;
@@ -87,9 +87,12 @@ function openAiResponsesCall(
   if (!ts.isPropertyAccessExpression(responses) || responses.name.text !== "responses") return null;
   const client = unwrapExpression(responses.expression);
   const clientSymbol = symbolOf(checker, client);
-  if (!clientSymbol) return null;
-  const clientOwner = clients.get(clientSymbol);
-  return clientOwner && clientOwner === nearestOwner(normalized) ? normalized : null;
+  // Membership in `clients` proves this exact symbol is a verified OpenAI client,
+  // preserving shadowing precision without any name matching. Lexical scoping
+  // guarantees the referenced declaration lives in an enclosing (module or
+  // ancestor) scope, so the client may be a shared singleton while the tainted
+  // output stays owned by this call's own lexical scope via `provenance`.
+  return clientSymbol && clients.has(clientSymbol) ? normalized : null;
 }
 
 function destructuredTextBindings(
@@ -118,7 +121,7 @@ export function findSources(
   const origins: TaintOrigin[] = [];
   const bindings: TaintedBinding[] = [];
   const vercelResults = new Map<Symbol, SourceProvenance>();
-  const openAiClients = new Map<Symbol, SourceProvenance["owner"]>();
+  const openAiClients = new Set<Symbol>();
   const openAiResponses = new Map<Symbol, SourceProvenance>();
   const { sourceFile } = file;
 
@@ -126,7 +129,7 @@ export function findSources(
     if (ts.isVariableDeclaration(node) && isConstDeclaration(node) && node.initializer) {
       if (ts.isIdentifier(node.name) && openAiClientConstructor(checker, node.initializer)) {
         const symbol = checker.getSymbolAtLocation(node.name);
-        if (symbol) openAiClients.set(symbol, nearestOwner(node));
+        if (symbol) openAiClients.add(symbol);
       }
 
       const generateCall = vercelCall(checker, node.initializer);

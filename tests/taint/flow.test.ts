@@ -69,6 +69,25 @@ describe("findFlows", () => {
     expect(flows.map((flow) => flow.sinkKind)).toEqual(["exec", "exec"]);
   });
 
+  it("normalizes compiler-erased TypeScript wrappers on sources and sink arguments", () => {
+    const { project, file } = analyze("ts-erased-wrappers.ts");
+    const flows = findFlows(project.checker, file);
+
+    expect(flows).toHaveLength(5);
+    expect(flows.every((flow) => flow.api === "vercel-generateText")).toBe(true);
+    expect(flows.every((flow) => flow.sinkKind === "exec")).toBe(true);
+    expect(flows.every((flow) => flow.sourceLine < flow.sinkLine)).toBe(true);
+  });
+
+  it("detects model output interpolated directly into a sink template literal", () => {
+    const { project, file } = analyze("template-interpolation.ts");
+    const flows = findFlows(project.checker, file);
+
+    expect(flows).toHaveLength(2);
+    expect(flows.every((flow) => flow.api === "vercel-generateText" && flow.sinkKind === "exec")).toBe(true);
+    expect(flows.every((flow) => flow.sourceLine < flow.sinkLine)).toBe(true);
+  });
+
   it("rejects backward flow using AST character positions", () => {
     const { project, file } = analyze("ordering.ts");
     expect(findFlows(project.checker, file)).toEqual([]);

@@ -339,3 +339,47 @@ async function vulnerable() {
     expect(res.output).toContain(".env:1");
   });
 });
+
+describe("audit exit semantics are order-independent", () => {
+  // audit must always exit 0, whether value-taking flags precede or follow the
+  // command, whether the value is space- or `=`-separated, and whether the
+  // failure is an invalid value, an unknown flag, or a setup mismatch.
+  const auditZero: [string, string[]][] = [
+    ["invalid --format value before audit", ["--format", "sarif", "audit"]],
+    ["invalid --format=value before audit", ["--format=sarif", "audit"]],
+    ["valid --format value then unknown flag", ["--format", "json", "audit", "--bad-flag"]],
+    ["valid --format value after audit then unknown flag", ["audit", "--format", "json", "--bad-flag"]],
+    ["unknown flag before audit", ["--bad-flag", "audit"]],
+    ["unknown flag after audit", ["audit", "--bad-flag"]],
+    ["--report value before audit without --output", ["--report", "html", "audit"]],
+    ["--output value before audit without --report", ["--output", "out.html", "audit"]],
+    ["--report=value before audit without --output", ["--report=html", "audit"]],
+  ];
+  it.each(auditZero)("exits 0 for audit with %s", (_label, argv) => {
+    expect(run(argv, root).code).toBe(0);
+  });
+
+  // The equivalent check invocations must still surface the diagnostic as exit 2.
+  const checkTwo: [string, string[]][] = [
+    ["invalid --format value before check", ["--format", "sarif", "check"]],
+    ["invalid --format value after check", ["check", "--format", "sarif"]],
+    ["valid --format value then unknown flag", ["--format", "json", "check", "--bad-flag"]],
+    ["unknown flag before default check", ["--bad-flag"]],
+    ["unknown flag after check", ["check", "--bad-flag"]],
+    ["--report value before check without --output", ["--report", "html", "check"]],
+  ];
+  it.each(checkTwo)("exits 2 for check with %s", (_label, argv) => {
+    expect(run(argv, root).code).toBe(2);
+  });
+
+  // A value that merely spells "audit" belongs to its option and is not the
+  // command, so these remain checks and exit 2 on the invalid format value.
+  const valueSpelledAudit: [string, string[]][] = [
+    ["--format audit (bare)", ["--format", "audit"]],
+    ["--format audit then a path positional", ["--format", "audit", "check"]],
+    ["--format=audit (bare)", ["--format=audit"]],
+  ];
+  it.each(valueSpelledAudit)("treats an option value of 'audit' as a value, not the command (%s)", (_label, argv) => {
+    expect(run(argv, root).code).toBe(2);
+  });
+});

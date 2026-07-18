@@ -55,25 +55,46 @@ export function findFlows(checker: TypeChecker, file: FileAnalysis): TaintFlow[]
   };
   visit(file.sourceFile);
 
+  const resolveDirectSource = (
+    expression: Expression,
+  ): { source: SourceProvenance; directOrigin: boolean } | null => {
+    const normalized = unwrapExpression(expression);
+    const origin = originMap.get(normalized);
+    if (origin) return { source: origin, directOrigin: true };
+    const symbol = identifierSymbol(checker, normalized);
+    if (symbol) {
+      const bound = directBindings.get(symbol) ?? oneHopBindings.get(symbol);
+      if (bound) return { source: bound, directOrigin: false };
+    }
+    return null;
+  };
+
   const flows: TaintFlow[] = [];
   for (const sink of findSinks(checker, file)) {
     const argument = unwrapExpression(sink.argument);
-    let source = originMap.get(argument);
-    const directOrigin = source !== undefined;
-    if (!source) {
-      const argumentSymbol = identifierSymbol(checker, argument);
-      if (argumentSymbol) {
-        source = directBindings.get(argumentSymbol) ?? oneHopBindings.get(argumentSymbol);
+    // A shell/eval argument is tainted when it is the model output itself or
+    // when it interpolates the model output directly into a template literal.
+    // Both are single-owner flows; the interpolation adds no extra hop.
+    const operands = ts.isTemplateExpression(argument)
+      ? argument.templateSpans.map((span) => span.expression)
+      : [argument];
+    for (const operand of operands) {
+      const resolved = resolveDirectSource(operand);
+      if (!resolved || resolved.source.owner !== sink.owner) continue;
+      if (
+        !resolved.directOrigin
+        && resolved.source.sourcePosition > unwrapExpression(operand).getStart(file.sourceFile)
+      ) {
+        continue;
       }
+      flows.push({
+        api: resolved.source.api,
+        sinkKind: sink.kind,
+        sourceLine: resolved.source.sourceLine,
+        sinkLine: sink.line,
+      });
+      break;
     }
-    if (!source || source.owner !== sink.owner) continue;
-    if (!directOrigin && source.sourcePosition > argument.getStart(file.sourceFile)) continue;
-    flows.push({
-      api: source.api,
-      sinkKind: sink.kind,
-      sourceLine: source.sourceLine,
-      sinkLine: sink.line,
-    });
   }
   return flows;
 }
