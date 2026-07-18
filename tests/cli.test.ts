@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { run } from "../src/cli.ts";
@@ -27,6 +27,49 @@ afterEach(() => {
 });
 
 describe("run", () => {
+  it("detects OpenAI Responses output reaching exec through the real CLI path", () => {
+    const fixture = makeTemp("preflight-openai-shell-");
+    writeFileSync(join(fixture, "vulnerable.ts"), `
+import OpenAI from "openai";
+import { exec } from "node:child_process";
+async function vulnerable() {
+  const client = new OpenAI();
+  const response = await client.responses.create({ input: "command" });
+  exec(response.output_text);
+}
+`);
+
+    const result = run(["check", fixture, "--json"], fixture);
+    const payload = JSON.parse(result.output);
+    expect(result.code).toBe(1);
+    expect(payload.findings).toHaveLength(1);
+    expect(payload.findings[0]).toMatchObject({
+      ruleId: "llm-output-to-shell",
+      source: "OpenAI Responses output_text",
+    });
+  });
+
+  it("detects Vercel generateText output reaching exec through the real CLI path", () => {
+    const fixture = makeTemp("preflight-vercel-shell-");
+    writeFileSync(join(fixture, "vulnerable.ts"), `
+import { generateText } from "ai";
+import { exec } from "node:child_process";
+async function vulnerable() {
+  const result = await generateText({ prompt: "command" });
+  exec(result.text);
+}
+`);
+
+    const result = run(["check", fixture, "--json"], fixture);
+    const payload = JSON.parse(result.output);
+    expect(result.code).toBe(1);
+    expect(payload.findings).toHaveLength(1);
+    expect(payload.findings[0]).toMatchObject({
+      ruleId: "llm-output-to-shell",
+      source: "Vercel AI SDK generateText().text",
+    });
+  });
+
   it("check exits 1 and reports the finding", () => {
     const res = run(["check"], root);
     expect(res.code).toBe(1);
@@ -48,6 +91,65 @@ describe("run", () => {
   it("--json emits parseable output", () => {
     const res = run(["check", "--json"], root);
     expect(JSON.parse(res.output).summary.check).toBe(1);
+  });
+
+  it("supports explicit JSON and GitHub output formats", () => {
+    const alias = run(["check", "--json"], root);
+    const explicit = run(["check", "--format", "json"], root);
+    const github = run(["check", "--format", "github"], root);
+
+    expect(explicit).toEqual(alias);
+    expect(JSON.parse(explicit.output).schemaVersion).toBe(1);
+    expect(github.code).toBe(1);
+    expect(github.output).toContain("::error file=bad.ts,line=1,title=preflight/hardcoded-credential::");
+  });
+
+  it("rejects invalid or conflicting output formats with command-compatible exits", () => {
+    expect(run(["check", "--format", "sarif"], root).code).toBe(2);
+    expect(run(["audit", "--format", "sarif"], root).code).toBe(0);
+    expect(run(["check", "--json", "--format", "github"], root).code).toBe(2);
+  });
+
+  it("writes a self-contained HTML sidecar without changing stdout or exit status", () => {
+    const reportPath = join(root, "preflight-report.html");
+    const result = run([
+      "check",
+      "--format",
+      "json",
+      "--report",
+      "html",
+      "--output",
+      reportPath,
+    ], root);
+    const html = readFileSync(reportPath, "utf8");
+
+    expect(result.code).toBe(1);
+    expect(JSON.parse(result.output).summary.check).toBe(1);
+    expect(html).toContain("Preflight security report");
+    expect(html).toContain("Hardcoded OpenAI API key");
+    expect(html).not.toContain("ABCDEFGHIJKLMNOP1234567890");
+    expect(html).not.toMatch(/<(?:script|link|img)\b/i);
+  });
+
+  it("validates HTML report flags and safely reports write failures", () => {
+    expect(run(["check", "--report", "html"], root).code).toBe(2);
+    expect(run(["check", "--output", "report.html"], root).code).toBe(2);
+    expect(run(["check", "--report", "pdf", "--output", "report.pdf"], root).code).toBe(2);
+    expect(run(["audit", "--report", "html"], root).code).toBe(0);
+
+    const failed = run([
+      "check",
+      "--format",
+      "json",
+      "--report",
+      "html",
+      "--output",
+      join(root, "missing", "report.html"),
+    ], root);
+    expect(failed.code).toBe(2);
+    expect(JSON.parse(failed.output).errors).toEqual([
+      { ruleId: "scanner", file: ".", message: "Unable to complete the scan." },
+    ]);
   });
 
   it("applies named comment suppressions and reports them without reasons", () => {
@@ -138,7 +240,7 @@ describe("run", () => {
   it("rejects combined help and version flags", () => {
     expect(run(["--help", "--version"], root)).toEqual({
       code: 2,
-      output: "Usage: preflight <check|audit> [path] [--json]",
+      output: "Usage: preflight <check|audit> [path] [--staged] [--json | --format sober|json|github] [--report html --output <file>]",
     });
   });
 
@@ -158,7 +260,7 @@ describe("run", () => {
     const res = run(["frobnicate"], root);
     expect(res).toEqual({
       code: 2,
-      output: "Unknown command \"frobnicate\". Usage: preflight <check|audit> [path] [--json]",
+      output: "Unknown command \"frobnicate\". Usage: preflight <check|audit> [path] [--staged] [--json | --format sober|json|github] [--report html --output <file>]",
     });
   });
 
@@ -235,5 +337,49 @@ describe("run", () => {
     const res = run(["check", nested], repo);
     expect(res.code).toBe(1);
     expect(res.output).toContain(".env:1");
+  });
+});
+
+describe("audit exit semantics are order-independent", () => {
+  // audit must always exit 0, whether value-taking flags precede or follow the
+  // command, whether the value is space- or `=`-separated, and whether the
+  // failure is an invalid value, an unknown flag, or a setup mismatch.
+  const auditZero: [string, string[]][] = [
+    ["invalid --format value before audit", ["--format", "sarif", "audit"]],
+    ["invalid --format=value before audit", ["--format=sarif", "audit"]],
+    ["valid --format value then unknown flag", ["--format", "json", "audit", "--bad-flag"]],
+    ["valid --format value after audit then unknown flag", ["audit", "--format", "json", "--bad-flag"]],
+    ["unknown flag before audit", ["--bad-flag", "audit"]],
+    ["unknown flag after audit", ["audit", "--bad-flag"]],
+    ["--report value before audit without --output", ["--report", "html", "audit"]],
+    ["--output value before audit without --report", ["--output", "out.html", "audit"]],
+    ["--report=value before audit without --output", ["--report=html", "audit"]],
+  ];
+  it.each(auditZero)("exits 0 for audit with %s", (_label, argv) => {
+    expect(run(argv, root).code).toBe(0);
+  });
+
+  // The equivalent check invocations must still surface the diagnostic as exit 2.
+  const checkTwo: [string, string[]][] = [
+    ["invalid --format value before check", ["--format", "sarif", "check"]],
+    ["invalid --format value after check", ["check", "--format", "sarif"]],
+    ["valid --format value then unknown flag", ["--format", "json", "check", "--bad-flag"]],
+    ["unknown flag before default check", ["--bad-flag"]],
+    ["unknown flag after check", ["check", "--bad-flag"]],
+    ["--report value before check without --output", ["--report", "html", "check"]],
+  ];
+  it.each(checkTwo)("exits 2 for check with %s", (_label, argv) => {
+    expect(run(argv, root).code).toBe(2);
+  });
+
+  // A value that merely spells "audit" belongs to its option and is not the
+  // command, so these remain checks and exit 2 on the invalid format value.
+  const valueSpelledAudit: [string, string[]][] = [
+    ["--format audit (bare)", ["--format", "audit"]],
+    ["--format audit then a path positional", ["--format", "audit", "check"]],
+    ["--format=audit (bare)", ["--format=audit"]],
+  ];
+  it.each(valueSpelledAudit)("treats an option value of 'audit' as a value, not the command (%s)", (_label, argv) => {
+    expect(run(argv, root).code).toBe(2);
   });
 });

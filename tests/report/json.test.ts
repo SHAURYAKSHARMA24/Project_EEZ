@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { renderJson } from "../../src/report/json.ts";
+import { JSON_SCHEMA_VERSION } from "../../src/report/jsonSchema.ts";
 import type { Finding, RuleError, Suppression } from "../../src/types.ts";
 
 const f: Finding = { ruleId: "r", tier: "check", title: "t", file: "a.ts",
@@ -8,6 +9,7 @@ const f: Finding = { ruleId: "r", tier: "check", title: "t", file: "a.ts",
 describe("renderJson", () => {
   it("emits findings and a tier summary", () => {
     const parsed = JSON.parse(renderJson([f]));
+    expect(parsed.schemaVersion).toBe(JSON_SCHEMA_VERSION);
     expect(parsed.findings).toHaveLength(1);
     expect(parsed.summary).toEqual({ check: 1, audit: 0, suppressed: 0, total: 1 });
     expect(parsed.errors).toEqual([]);
@@ -25,6 +27,7 @@ describe("renderJson", () => {
   it("renders an empty result without manufacturing findings", () => {
     const parsed = JSON.parse(renderJson([]));
     expect(parsed).toEqual({
+      schemaVersion: 1,
       findings: [],
       errors: [],
       suppressed: [],

@@ -1,3 +1,5 @@
+import type { ProjectAnalysis } from "./ast/analysis.ts";
+
 export type Tier = "check" | "audit";
 export type Confidence = "high" | "medium" | "low";
 
@@ -26,6 +28,7 @@ export interface RuleContext {
   filePath: string;
   content: string;
   isGitTracked: boolean;
+  analysis?: ProjectAnalysis;
 }
 
 export interface Rule {

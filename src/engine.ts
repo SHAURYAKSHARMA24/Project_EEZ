@@ -1,5 +1,6 @@
 import { redactKnownSecrets } from "./redact.ts";
 import { applySuppressions } from "./suppressions.ts";
+import type { ProjectAnalysis } from "./ast/analysis.ts";
 import type { EngineResult, Finding, LoadedFile, Rule, RuleError } from "./types.ts";
 
 function redactFinding(finding: Finding): Finding {
@@ -19,7 +20,11 @@ function redactFinding(finding: Finding): Finding {
   };
 }
 
-export function runRules(files: LoadedFile[], rules: Rule[]): EngineResult {
+export function runRules(
+  files: LoadedFile[],
+  rules: Rule[],
+  analysis?: ProjectAnalysis,
+): EngineResult {
   const findings: Finding[] = [];
   const errors: RuleError[] = [];
   const suppressed: EngineResult["suppressed"] = [];
@@ -36,6 +41,7 @@ export function runRules(files: LoadedFile[], rules: Rule[]): EngineResult {
             filePath,
             content: file.content,
             isGitTracked: file.isGitTracked,
+            analysis,
           }).map(redactFinding),
         );
       } catch {
