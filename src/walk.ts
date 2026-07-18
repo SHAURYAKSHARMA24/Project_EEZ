@@ -17,7 +17,7 @@ const IGNORED_DIRS = new Set([
 ]);
 const CODE_EXTS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"]);
 
-function isScannable(name: string): boolean {
+export function isScannablePath(name: string): boolean {
   return CODE_EXTS.has(extname(name)) || basename(name).startsWith(".env");
 }
 
@@ -28,7 +28,7 @@ export function collectFiles(root: string): string[] {
       const abs = join(dir, entry.name);
       if (entry.isDirectory()) {
         if (!IGNORED_DIRS.has(entry.name)) walk(abs);
-      } else if (entry.isFile() && isScannable(entry.name)) {
+      } else if (entry.isFile() && isScannablePath(entry.name)) {
         out.push(relative(root, abs).split("\\").join("/"));
       }
     }

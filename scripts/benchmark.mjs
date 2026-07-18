@@ -53,7 +53,8 @@ void vulnerable;
     throw new Error("The built CLI benchmark did not return valid JSON.");
   }
   if (
-    !Array.isArray(report.findings)
+    report.schemaVersion !== 1
+    || !Array.isArray(report.findings)
     || report.findings.length !== 50
     || !Array.isArray(report.errors)
     || report.errors.length !== 0

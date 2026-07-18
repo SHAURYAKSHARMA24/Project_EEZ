@@ -1,30 +1,41 @@
 #!/usr/bin/env node
 import { parseArgs } from "node:util";
 import { pathToFileURL } from "node:url";
-import { realpathSync, statSync } from "node:fs";
+import { realpathSync, statSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { analyzeFiles, collectFiles, loadFiles } from "./walk.ts";
-import { runRules } from "./engine.ts";
+import { collectFiles, loadFiles } from "./walk.ts";
+import { loadStagedFiles } from "./git/staged.ts";
+import { HookInstallError, installPreCommitHook } from "./hooks/preCommit.ts";
+import { scanFiles } from "./scan.ts";
 import { renderSober } from "./report/sober.ts";
 import { renderJson } from "./report/json.ts";
+import { renderGithub } from "./report/github.ts";
+import { renderHtml } from "./report/html.ts";
 import { allRules } from "./rules/index.ts";
 import { redactKnownSecrets } from "./redact.ts";
 import { getVersion } from "./version.ts";
 import type { RuleError } from "./types.ts";
 
 type Command = "check" | "audit";
+type OutputFormat = "sober" | "json" | "github";
 
 const KNOWN_COMMANDS = new Set<Command>(["check", "audit"]);
-const USAGE = "Usage: preflight <check|audit> [path] [--json]";
+const USAGE = "Usage: preflight <check|audit> [path] [--staged] [--json | --format sober|json|github] [--report html --output <file>]";
+const INSTALL_HOOK_USAGE = "Usage: preflight install-hook";
 const HELP = [
   USAGE,
   "",
   "Commands:",
   "  check [path]   Run blocking checks (default command).",
   "  audit [path]   Run non-blocking review; always exits 0.",
+  "  install-hook   Install a staged-only pre-commit hook.",
   "",
   "Flags:",
+  "  --staged       Scan complete staged Git blobs instead of a path.",
   "  --json         Emit machine-readable JSON.",
+  "  --format       Select sober, json, or github output.",
+  "  --report html  Write a self-contained HTML sidecar.",
+  "  --output FILE  Path for the HTML sidecar.",
   "  -h, --help     Show this help text.",
   "  -v, --version  Print the installed version.",
 ].join("\n");
@@ -44,7 +55,15 @@ function isDirectory(path: string): boolean {
 function resolveCommand(
   positionals: string[],
   cwd: string,
+  staged: boolean,
 ): { command: Command; root: string } | { usageError: string } {
+  if (staged) {
+    if (positionals.length === 0) return { command: "check", root: cwd };
+    if (positionals.length === 1 && isCommand(positionals[0])) {
+      return { command: positionals[0], root: cwd };
+    }
+    return { usageError: USAGE };
+  }
   if (positionals.length === 0) return { command: "check", root: cwd };
 
   const [first, ...rest] = positionals;
@@ -62,11 +81,22 @@ function resolveCommand(
   };
 }
 
-function diagnosticResult(command: Command, json: boolean, message: string): { code: number; output: string } {
+function renderOutput(
+  format: OutputFormat,
+  findings: import("./types.ts").Finding[],
+  errors: RuleError[],
+  suppressed: import("./types.ts").Suppression[] = [],
+): string {
+  if (format === "json") return renderJson(findings, errors, suppressed);
+  if (format === "github") return renderGithub(findings, errors, suppressed);
+  return renderSober(findings, errors, suppressed);
+}
+
+function diagnosticResult(command: Command, format: OutputFormat, message: string): { code: number; output: string } {
   const errors: RuleError[] = [{ ruleId: "scanner", file: ".", message }];
   return {
     code: command === "audit" ? 0 : 2,
-    output: json ? renderJson([], errors) : renderSober([], errors),
+    output: renderOutput(format, [], errors),
   };
 }
 
@@ -80,7 +110,7 @@ function intendedCommand(argv: string[]): Command {
 
 export function run(argv: string[], cwd: string): { code: number; output: string } {
   let command = intendedCommand(argv);
-  let json = false;
+  let format: OutputFormat = "sober";
 
   try {
     const { values, positionals } = parseArgs({
@@ -88,34 +118,82 @@ export function run(argv: string[], cwd: string): { code: number; output: string
       allowPositionals: true,
       options: {
         json: { type: "boolean", default: false },
+        format: { type: "string" },
+        report: { type: "string" },
+        output: { type: "string" },
+        staged: { type: "boolean", default: false },
         help: { type: "boolean", short: "h", default: false },
         version: { type: "boolean", short: "v", default: false },
       },
     });
-    json = values.json;
-
     if (values.help && values.version) return { code: 2, output: USAGE };
     if (values.help) return { code: 0, output: HELP };
     if (values.version) return { code: 0, output: getVersion() };
 
-    const resolution = resolveCommand(positionals, cwd);
+    const explicitFormat = values.format;
+    if (
+      (explicitFormat !== undefined && !["sober", "json", "github"].includes(explicitFormat))
+      || (values.json && explicitFormat !== undefined && explicitFormat !== "json")
+    ) {
+      return { code: command === "audit" ? 0 : 2, output: USAGE };
+    }
+    format = values.json ? "json" : (explicitFormat as OutputFormat | undefined) ?? "sober";
+    if (
+      (values.report === undefined) !== (values.output === undefined)
+      || (values.report !== undefined && values.report !== "html")
+    ) {
+      return { code: command === "audit" ? 0 : 2, output: USAGE };
+    }
+
+    if (positionals[0] === "install-hook") {
+      if (
+        positionals.length !== 1
+        || values.staged
+        || values.json
+        || values.format !== undefined
+        || values.report !== undefined
+        || values.output !== undefined
+      ) {
+        return { code: 2, output: INSTALL_HOOK_USAGE };
+      }
+      try {
+        const installed = installPreCommitHook(cwd);
+        return {
+          code: 0,
+          output: installed.status === "installed"
+            ? "Installed preflight pre-commit hook."
+            : "Preflight pre-commit hook is already installed.",
+        };
+      } catch (error) {
+        return {
+          code: 2,
+          output: error instanceof HookInstallError
+            ? error.message
+            : "Unable to install the preflight hook.",
+        };
+      }
+    }
+
+    const resolution = resolveCommand(positionals, cwd, values.staged);
     if ("usageError" in resolution) {
       return { code: command === "audit" ? 0 : 2, output: resolution.usageError };
     }
     command = resolution.command;
 
-    const files = loadFiles(resolution.root, collectFiles(resolution.root));
-    const analysis = analyzeFiles(files);
-    const { findings, checkFailures, errors, suppressed } = runRules(files, allRules, analysis);
+    const files = values.staged
+      ? loadStagedFiles(cwd)
+      : loadFiles(resolution.root, collectFiles(resolution.root));
+    const { findings, checkFailures, errors, suppressed } = scanFiles(files, allRules);
 
     const shown = command === "audit" ? findings : findings.filter((f) => f.tier === "check");
-    const output = json
-      ? renderJson(shown, errors, suppressed)
-      : renderSober(shown, errors, suppressed);
+    if (values.report === "html" && values.output !== undefined) {
+      writeFileSync(resolve(cwd, values.output), renderHtml(shown, errors, suppressed), "utf8");
+    }
+    const output = renderOutput(format, shown, errors, suppressed);
     const code = command === "audit" ? 0 : errors.length > 0 ? 2 : checkFailures.length > 0 ? 1 : 0;
     return { code, output };
   } catch {
-    return diagnosticResult(command, json, "Unable to complete the scan.");
+    return diagnosticResult(command, format, "Unable to complete the scan.");
   }
 }
 

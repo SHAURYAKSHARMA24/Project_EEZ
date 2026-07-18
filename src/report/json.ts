@@ -1,5 +1,6 @@
 import { redactKnownSecrets } from "../redact.ts";
 import type { Finding, RuleError, Suppression } from "../types.ts";
+import { JSON_SCHEMA_VERSION, type JsonReportV1 } from "./jsonSchema.ts";
 
 function redactSuppression(suppression: Suppression): Suppression {
   return {
@@ -19,13 +20,15 @@ export function renderJson(
   const check = findings.filter((f) => f.tier === "check").length;
   const audit = findings.filter((f) => f.tier === "audit").length;
   const safeSuppressions = suppressed.map(redactSuppression);
+  const report: JsonReportV1 = {
+    schemaVersion: JSON_SCHEMA_VERSION,
+    findings,
+    errors,
+    suppressed: safeSuppressions,
+    summary: { check, audit, suppressed: safeSuppressions.length, total: findings.length },
+  };
   return JSON.stringify(
-    {
-      findings,
-      errors,
-      suppressed: safeSuppressions,
-      summary: { check, audit, suppressed: safeSuppressions.length, total: findings.length },
-    },
+    report,
     null,
     2,
   );

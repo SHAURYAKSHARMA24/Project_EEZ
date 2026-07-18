@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { run } from "../src/cli.ts";
@@ -93,6 +93,65 @@ async function vulnerable() {
     expect(JSON.parse(res.output).summary.check).toBe(1);
   });
 
+  it("supports explicit JSON and GitHub output formats", () => {
+    const alias = run(["check", "--json"], root);
+    const explicit = run(["check", "--format", "json"], root);
+    const github = run(["check", "--format", "github"], root);
+
+    expect(explicit).toEqual(alias);
+    expect(JSON.parse(explicit.output).schemaVersion).toBe(1);
+    expect(github.code).toBe(1);
+    expect(github.output).toContain("::error file=bad.ts,line=1,title=preflight/hardcoded-credential::");
+  });
+
+  it("rejects invalid or conflicting output formats with command-compatible exits", () => {
+    expect(run(["check", "--format", "sarif"], root).code).toBe(2);
+    expect(run(["audit", "--format", "sarif"], root).code).toBe(0);
+    expect(run(["check", "--json", "--format", "github"], root).code).toBe(2);
+  });
+
+  it("writes a self-contained HTML sidecar without changing stdout or exit status", () => {
+    const reportPath = join(root, "preflight-report.html");
+    const result = run([
+      "check",
+      "--format",
+      "json",
+      "--report",
+      "html",
+      "--output",
+      reportPath,
+    ], root);
+    const html = readFileSync(reportPath, "utf8");
+
+    expect(result.code).toBe(1);
+    expect(JSON.parse(result.output).summary.check).toBe(1);
+    expect(html).toContain("Preflight security report");
+    expect(html).toContain("Hardcoded OpenAI API key");
+    expect(html).not.toContain("ABCDEFGHIJKLMNOP1234567890");
+    expect(html).not.toMatch(/<(?:script|link|img)\b/i);
+  });
+
+  it("validates HTML report flags and safely reports write failures", () => {
+    expect(run(["check", "--report", "html"], root).code).toBe(2);
+    expect(run(["check", "--output", "report.html"], root).code).toBe(2);
+    expect(run(["check", "--report", "pdf", "--output", "report.pdf"], root).code).toBe(2);
+    expect(run(["audit", "--report", "html"], root).code).toBe(0);
+
+    const failed = run([
+      "check",
+      "--format",
+      "json",
+      "--report",
+      "html",
+      "--output",
+      join(root, "missing", "report.html"),
+    ], root);
+    expect(failed.code).toBe(2);
+    expect(JSON.parse(failed.output).errors).toEqual([
+      { ruleId: "scanner", file: ".", message: "Unable to complete the scan." },
+    ]);
+  });
+
   it("applies named comment suppressions and reports them without reasons", () => {
     const clean = makeTemp("preflight-suppressed-");
     const rawSecret = ["sk-", "ABCDEFGHIJKLMNOP1234567890"].join("");
@@ -181,7 +240,7 @@ async function vulnerable() {
   it("rejects combined help and version flags", () => {
     expect(run(["--help", "--version"], root)).toEqual({
       code: 2,
-      output: "Usage: preflight <check|audit> [path] [--json]",
+      output: "Usage: preflight <check|audit> [path] [--staged] [--json | --format sober|json|github] [--report html --output <file>]",
     });
   });
 
@@ -201,7 +260,7 @@ async function vulnerable() {
     const res = run(["frobnicate"], root);
     expect(res).toEqual({
       code: 2,
-      output: "Unknown command \"frobnicate\". Usage: preflight <check|audit> [path] [--json]",
+      output: "Unknown command \"frobnicate\". Usage: preflight <check|audit> [path] [--staged] [--json | --format sober|json|github] [--report html --output <file>]",
     });
   });
 
