@@ -21,6 +21,23 @@ function identifierSymbol(checker: TypeChecker, expression: Expression): Symbol 
   return ts.isIdentifier(expression) ? checker.getSymbolAtLocation(expression) : undefined;
 }
 
+// Flatten a string-concatenation tree (`a + b + c`) into its leaf operands so
+// taint on any leaf taints the whole concatenation. Only `+` is a propagator;
+// any other binary operator returns the node itself (opaque, non-propagating).
+function concatOperands(expression: Expression): Expression[] {
+  const normalized = unwrapExpression(expression);
+  if (
+    ts.isBinaryExpression(normalized)
+    && normalized.operatorToken.kind === ts.SyntaxKind.PlusToken
+  ) {
+    return [
+      ...concatOperands(normalized.left),
+      ...concatOperands(normalized.right),
+    ];
+  }
+  return [normalized];
+}
+
 export function findFlows(checker: TypeChecker, file: FileAnalysis): TaintFlow[] {
   const sources = findSources(checker, file);
   const originMap = new Map<Expression, SourceProvenance>();
@@ -41,10 +58,14 @@ export function findFlows(checker: TypeChecker, file: FileAnalysis): TaintFlow[]
       && node.initializer
     ) {
       const initializer = unwrapExpression(node.initializer);
-      let source = originMap.get(initializer);
-      if (!source) {
-        const initializerSymbol = identifierSymbol(checker, initializer);
-        if (initializerSymbol) source = directBindings.get(initializerSymbol);
+      let source: SourceProvenance | undefined;
+      for (const leaf of concatOperands(initializer)) {
+        source = originMap.get(leaf);
+        if (!source) {
+          const leafSymbol = identifierSymbol(checker, leaf);
+          if (leafSymbol) source = directBindings.get(leafSymbol);
+        }
+        if (source) break;
       }
       if (source && source.owner === nearestOwner(node)) {
         const bindingSymbol = checker.getSymbolAtLocation(node.name);
@@ -76,8 +97,8 @@ export function findFlows(checker: TypeChecker, file: FileAnalysis): TaintFlow[]
     // when it interpolates the model output directly into a template literal.
     // Both are single-owner flows; the interpolation adds no extra hop.
     const operands = ts.isTemplateExpression(argument)
-      ? argument.templateSpans.map((span) => span.expression)
-      : [argument];
+      ? argument.templateSpans.flatMap((span) => concatOperands(span.expression))
+      : concatOperands(argument);
     for (const operand of operands) {
       const resolved = resolveDirectSource(operand);
       if (!resolved || resolved.source.owner !== sink.owner) continue;

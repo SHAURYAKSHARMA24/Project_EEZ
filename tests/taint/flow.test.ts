@@ -88,6 +88,16 @@ describe("findFlows", () => {
     expect(flows.every((flow) => flow.sourceLine < flow.sinkLine)).toBe(true);
   });
 
+  it("propagates taint through string concatenation into a sink", () => {
+    const { project, file } = analyze("concatenation.ts");
+    const flows = findFlows(project.checker, file);
+
+    // Two positives: direct concat argument, and concat bound to a const.
+    expect(flows).toHaveLength(2);
+    expect(flows.every((flow) => flow.api === "vercel-generateText" && flow.sinkKind === "exec")).toBe(true);
+    expect(flows.every((flow) => flow.sourceLine <= flow.sinkLine)).toBe(true);
+  });
+
   it("rejects backward flow using AST character positions", () => {
     const { project, file } = analyze("ordering.ts");
     expect(findFlows(project.checker, file)).toEqual([]);
