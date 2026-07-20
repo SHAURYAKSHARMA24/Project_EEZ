@@ -31,6 +31,9 @@ describe("llmOutputToShell", () => {
       sink: "child_process.exec",
     });
     expect(found[0].message).toMatch(/source line \d+.*sink line \d+/);
+    expect(found[0].fix).toContain("Map model-controlled data");
+    expect(found[0].fix).toContain("fixed executable");
+    expect(found[0].fix).toContain("allowlisted argument array");
     expect(found[0].fix).toContain("execFile");
   });
 
@@ -82,7 +85,10 @@ describe("llmOutputToShell", () => {
     expect(found[0].message).toMatch(/source line \d+.*sink line \d+/);
     expect(found[0].message).toContain("Model-controlled data can become executable code");
     expect(found[0].fix).toContain("Avoid invoking a shell");
-    expect(found[0].fix).toContain("validate structured tool inputs");
+    expect(found[0].fix).toContain("Map model-controlled data");
+    expect(found[0].fix).toContain("fixed executable");
+    expect(found[0].fix).toContain("allowlisted argument array");
+    expect(found[0].fix).toContain("spawn with shell disabled");
   });
 
   it("returns no findings without shared analysis or for safe APIs", () => {

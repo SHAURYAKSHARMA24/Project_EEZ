@@ -18,7 +18,7 @@ const SINK_LABELS: Record<TaintFlow["sinkKind"], string> = {
 };
 
 const SHELL_FIX =
-  "Avoid invoking a shell. Use a fixed executable with an allowlisted argument array via execFile or spawn with shell disabled, and validate structured tool inputs before dispatch.";
+  "Avoid invoking a shell. Map model-controlled data to a fixed executable and an allowlisted argument array, then call it via execFile or spawn with shell disabled.";
 const EVALUATOR_FIX =
   "Do not dynamically evaluate model-controlled data. Parse and validate a constrained action, then dispatch only known cases.";
 
