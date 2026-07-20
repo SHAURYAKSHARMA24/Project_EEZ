@@ -14,7 +14,8 @@ npm run benchmark:corpus
 ```
 
 `npm run ci` runs the corpus scorer after the build and also preserves the separate 500-file
-performance benchmark (`npm run benchmark`). The scorer invokes `dist/cli.js check
+performance benchmark (`npm run benchmark`), including about 20,000 unrelated calls in clean
+files to guard tool-source prefilter cost. The scorer invokes `dist/cli.js check
 benchmark/corpus --json`; it does not call internal rule functions.
 
 ## Labels

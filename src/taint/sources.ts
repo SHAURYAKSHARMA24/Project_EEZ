@@ -12,6 +12,8 @@ import type {
   VariableDeclaration,
 } from "typescript";
 
+const MCP_MODULE_PREFIX = "@modelcontextprotocol/sdk";
+
 export type SourceApi = "openai-responses" | "vercel-generateText" | "tool-parameter";
 
 export interface SourceProvenance {
@@ -40,6 +42,26 @@ function isConstDeclaration(declaration: VariableDeclaration): boolean {
 
 function symbolOf(checker: TypeChecker, expression: Expression): Symbol | undefined {
   return ts.isIdentifier(expression) ? checker.getSymbolAtLocation(expression) : undefined;
+}
+
+function mayContainToolHandler(sourceFile: SourceFile): boolean {
+  for (const statement of sourceFile.statements) {
+    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) {
+      continue;
+    }
+    const module = statement.moduleSpecifier.text;
+    if (module === MCP_MODULE_PREFIX || module.startsWith(`${MCP_MODULE_PREFIX}/`)) return true;
+    if (module !== "ai") continue;
+    const bindings = statement.importClause?.namedBindings;
+    if (
+      bindings
+      && ts.isNamedImports(bindings)
+      && bindings.elements.some((element) => (element.propertyName ?? element.name).text === "tool")
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function provenance(
@@ -163,6 +185,7 @@ export function findSources(
   const openAiClients = new Set<Symbol>();
   const openAiResponses = new Map<Symbol, SourceProvenance>();
   const { sourceFile } = file;
+  const scanToolHandlers = mayContainToolHandler(sourceFile);
 
   const visit = (node: import("typescript").Node): void => {
     if (ts.isVariableDeclaration(node) && isConstDeclaration(node) && node.initializer) {
@@ -214,7 +237,7 @@ export function findSources(
       }
     }
 
-    if (ts.isCallExpression(node)) {
+    if (scanToolHandlers && ts.isCallExpression(node)) {
       bindings.push(...toolParameterBindings(checker, node, sourceFile));
     }
 

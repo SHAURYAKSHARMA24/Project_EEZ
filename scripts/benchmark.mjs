@@ -16,7 +16,10 @@ try {
     throw new Error("dist/cli.js is missing. Run npm run build before the benchmark.");
   }
 
-  // Deterministic 500-file mix: 50 M1a positives followed by 450 clean modules.
+  // Deterministic 500-file mix: 50 M1a positives, 350 trivial clean modules,
+  // and 100 call-heavy clean modules (~20,000 unrelated calls). The latter
+  // guards the cheap-import prefilter that keeps tool-handler symbol queries
+  // off files which cannot contain a supported tool source.
   for (let index = 0; index < 50; index++) {
     writeFileSync(join(tempRoot, `positive-${index.toString().padStart(3, "0")}.ts`), `
 import { generateText } from "ai";
@@ -28,11 +31,23 @@ async function vulnerable() {
 void vulnerable;
 `);
   }
-  for (let index = 0; index < 450; index++) {
+  for (let index = 0; index < 350; index++) {
     writeFileSync(
       join(tempRoot, `clean-${index.toString().padStart(3, "0")}.ts`),
       `export const clean${index} = ${index};\n`,
     );
+  }
+  const unrelatedCalls = Array.from(
+    { length: 200 },
+    (_, index) => `  localHelper(${index});`,
+  ).join("\n");
+  for (let index = 0; index < 100; index++) {
+    writeFileSync(join(tempRoot, `call-heavy-${index.toString().padStart(3, "0")}.ts`), `
+function localHelper(value: number) { return value; }
+export function callHeavy${index}() {
+${unrelatedCalls}
+}
+`);
   }
 
   const started = performance.now();
@@ -63,7 +78,9 @@ void vulnerable;
     throw new Error("The built CLI benchmark failed its correctness gate.");
   }
 
-  console.log(`Benchmark: ${elapsedMs.toFixed(1)} ms for 500 files (50 M1a findings).`);
+  console.log(
+    `Benchmark: ${elapsedMs.toFixed(1)} ms for 500 files (~20,000 clean calls, 50 M1a findings).`,
+  );
   if (elapsedMs > TARGET_MS) {
     console.warn(`Benchmark exceeded the ${TARGET_MS} ms performance target.`);
   }

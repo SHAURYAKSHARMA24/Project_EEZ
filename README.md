@@ -173,7 +173,8 @@ It type-checks, tests, builds, scores the public labeled corpus, verifies
 `npm pack --dry-run`, installs one locally packed tarball, and exercises its
 bin, JSON v1, GitHub annotations, HTML report, staged scan, pre-commit hook,
 and TypeScript dependency isolation. It then scans this repository with the
-built CLI and runs a separate synthetic 500-file throughput benchmark. The
+built CLI and runs a separate synthetic 500-file throughput benchmark that
+includes about 20,000 unrelated calls in clean files. The
 individual self-scan is available as `npm run check:self`; the package smoke
 test is `npm run package:smoke`.
 
