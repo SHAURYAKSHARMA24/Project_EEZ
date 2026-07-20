@@ -1,6 +1,7 @@
 import type { FileAnalysis } from "../ast/analysis.ts";
 import { isImportedAs, nearestOwner, unwrapExpression } from "../ast/symbols.ts";
 import ts from "../ast/ts.ts";
+import { findToolHandler } from "./toolHandlers.ts";
 import type {
   CallExpression,
   Expression,
@@ -11,7 +12,7 @@ import type {
   VariableDeclaration,
 } from "typescript";
 
-export type SourceApi = "openai-responses" | "vercel-generateText";
+export type SourceApi = "openai-responses" | "vercel-generateText" | "tool-parameter";
 
 export interface SourceProvenance {
   api: SourceApi;
@@ -114,6 +115,44 @@ function destructuredTextBindings(
   return bindings;
 }
 
+// Bind the model-controlled parameter of a recognized tool handler as tainted.
+// The parameter may be a plain identifier or an object binding pattern; every
+// bound identifier becomes a tainted binding owned by the handler function, so
+// existing same-owner flow links it to sinks in the handler body.
+function toolParameterBindings(
+  checker: TypeChecker,
+  call: CallExpression,
+  sourceFile: SourceFile,
+): TaintedBinding[] {
+  const handlerInfo = findToolHandler(checker, call);
+  if (!handlerInfo) return [];
+  const parameter = handlerInfo.handler.parameters[handlerInfo.parameterIndex];
+  if (!parameter) return [];
+
+  const position = parameter.getStart(sourceFile);
+  const source: SourceProvenance = {
+    api: "tool-parameter",
+    sourceNode: call,
+    sourceLine: sourceFile.getLineAndCharacterOfPosition(call.getStart(sourceFile)).line + 1,
+    sourcePosition: position,
+    owner: handlerInfo.handler,
+  };
+
+  const bindings: TaintedBinding[] = [];
+  const bind = (name: import("typescript").Node): void => {
+    if (ts.isIdentifier(name)) {
+      const symbol = checker.getSymbolAtLocation(name);
+      if (symbol) bindings.push({ symbol, owner: source.owner, provenance: source });
+    } else if (ts.isObjectBindingPattern(name) || ts.isArrayBindingPattern(name)) {
+      for (const element of name.elements) {
+        if (ts.isBindingElement(element)) bind(element.name);
+      }
+    }
+  };
+  bind(parameter.name);
+  return bindings;
+}
+
 export function findSources(
   checker: TypeChecker,
   file: FileAnalysis,
@@ -173,6 +212,10 @@ export function findSources(
       if (source && source.owner === nearestOwner(node)) {
         origins.push({ expression: node, provenance: source });
       }
+    }
+
+    if (ts.isCallExpression(node)) {
+      bindings.push(...toolParameterBindings(checker, node, sourceFile));
     }
 
     ts.forEachChild(node, visit);

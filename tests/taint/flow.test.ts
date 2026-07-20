@@ -124,4 +124,11 @@ describe("findFlows", () => {
     );
     expect(findFlows(project.checker, project.files.get("project-isolation-sink.ts")!)).toEqual([]);
   });
+
+  it("links tool-handler parameters to sinks in the handler body", () => {
+    const { project, file } = analyze("tool-parameter-sink.ts");
+    const flows = findFlows(project.checker, file);
+    expect(flows).toHaveLength(2);
+    expect(flows.every((flow) => flow.api === "tool-parameter" && flow.sinkKind === "exec")).toBe(true);
+  });
 });

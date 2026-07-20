@@ -99,4 +99,14 @@ describe("findSources", () => {
 
     expect(findSources(project.checker, file)).toEqual({ origins: [], bindings: [] });
   });
+
+  it("marks recognized tool-handler parameters as tainted bindings", () => {
+    const { project, file } = analyze("tool-parameters.ts");
+    const found = findSources(project.checker, file);
+    const names = found.bindings
+      .filter((binding) => binding.provenance.api === "tool-parameter")
+      .map((binding) => binding.symbol.name)
+      .sort();
+    expect(names).toEqual(["args", "command"]);
+  });
 });

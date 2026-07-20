@@ -87,6 +87,14 @@ export function findFlows(checker: TypeChecker, file: FileAnalysis): TaintFlow[]
       const bound = directBindings.get(symbol) ?? oneHopBindings.get(symbol);
       if (bound) return { source: bound, directOrigin: false };
     }
+    if (ts.isPropertyAccessExpression(normalized) || ts.isElementAccessExpression(normalized)) {
+      const receiver = unwrapExpression(normalized.expression);
+      const receiverSymbol = identifierSymbol(checker, receiver);
+      if (receiverSymbol) {
+        const bound = directBindings.get(receiverSymbol) ?? oneHopBindings.get(receiverSymbol);
+        if (bound && bound.api === "tool-parameter") return { source: bound, directOrigin: false };
+      }
+    }
     return null;
   };
 

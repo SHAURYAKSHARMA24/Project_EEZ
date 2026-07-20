@@ -6,6 +6,7 @@ const SCANNABLE = /\.(?:cjs|js|jsx|mjs|ts|tsx)$/i;
 const SOURCE_LABELS: Record<TaintFlow["api"], string> = {
   "openai-responses": "OpenAI Responses output_text",
   "vercel-generateText": "Vercel AI SDK generateText().text",
+  "tool-parameter": "AI tool call argument",
 };
 
 const SINK_LABELS: Record<TaintFlow["sinkKind"], string> = {
