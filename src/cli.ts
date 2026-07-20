@@ -210,7 +210,11 @@ export function run(argv: string[], cwd: string): { code: number; output: string
     const { findings, checkFailures, errors, suppressed } = scanFiles(files, allRules);
 
     const shown = command === "audit" ? findings : findings.filter((f) => f.tier === "check");
-    const scanComplete = errors.length === 0;
+    // Suppression diagnostics (malformed, unknown-rule, stale directives) are
+    // hygiene problems in a scan that ran to completion, so they leave
+    // scanComplete true. Only a scanner abort or a rule that could not read a
+    // file means the scan itself is incomplete.
+    const scanComplete = errors.every((error) => error.ruleId === "suppression");
     if (values.report === "html" && values.output !== undefined) {
       writeFileSync(resolve(cwd, values.output), renderHtml(shown, errors, suppressed), "utf8");
     }

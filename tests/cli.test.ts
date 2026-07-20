@@ -102,10 +102,10 @@ async function vulnerable() {
   });
 
   it("check mode exit codes and scanComplete are unaffected by the audit contract", () => {
-    const clean = run(["check", "--json"], root);
-    const cleanPayload = JSON.parse(clean.output);
-    expect(clean.code).toBe(1);
-    expect(cleanPayload.scanComplete).toBe(true);
+    const withFindings = run(["check", "--json"], root);
+    const withFindingsPayload = JSON.parse(withFindings.output);
+    expect(withFindings.code).toBe(1);
+    expect(withFindingsPayload.scanComplete).toBe(true);
 
     const missing = run(["check", join(root, "missing"), "--json"], root);
     const missingPayload = JSON.parse(missing.output);
@@ -255,7 +255,9 @@ async function vulnerable() {
       const check = run(["check", "--json"], fixture);
       const checkPayload = JSON.parse(check.output);
       expect(check.code).toBe(2);
-      expect(checkPayload.scanComplete).toBe(false);
+      // A suppression diagnostic is a hygiene problem in a scan that ran to
+      // completion: it blocks (exit 2) but must not claim the scan aborted.
+      expect(checkPayload.scanComplete).toBe(true);
       expect(checkPayload.errors).toEqual([
         { ruleId: "suppression", file: "fixture.ts", message: testCase.message },
       ]);
@@ -264,7 +266,7 @@ async function vulnerable() {
       const audit = run(["audit", "--json"], fixture);
       const auditPayload = JSON.parse(audit.output);
       expect(audit.code).toBe(2);
-      expect(auditPayload.scanComplete).toBe(false);
+      expect(auditPayload.scanComplete).toBe(true);
       expect(auditPayload.errors).toEqual(checkPayload.errors);
       expect(audit.output).not.toContain(rawSecret);
     }
