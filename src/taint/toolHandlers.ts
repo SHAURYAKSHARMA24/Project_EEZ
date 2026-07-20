@@ -22,7 +22,7 @@ const MCP_MODULE_PREFIX = "@modelcontextprotocol/sdk";
 // Family match: the MCP SDK's own subpath exports (e.g. `.../server/mcp.js`)
 // and any other module specifier under the `@modelcontextprotocol/sdk` package.
 function isMcpModule(module: string): boolean {
-  return module.startsWith(MCP_MODULE_PREFIX);
+  return module === MCP_MODULE_PREFIX || module.startsWith(`${MCP_MODULE_PREFIX}/`);
 }
 
 function asFunction(expression: Expression | undefined): FunctionLikeDeclaration | null {
@@ -49,6 +49,7 @@ function executeProperty(object: ObjectLiteralExpression): Expression | undefine
 function vercelTool(checker: TypeChecker, call: CallExpression): ToolHandler | null {
   const callee = unwrapExpression(call.expression);
   if (!ts.isIdentifier(callee) || !isImportedAs(checker, callee, "ai", "tool")) return null;
+  if (call.arguments.length !== 1) return null;
   const config = call.arguments[0] ? unwrapExpression(call.arguments[0]) : undefined;
   if (!config || !ts.isObjectLiteralExpression(config)) return null;
   const handler = asFunction(executeProperty(config));
@@ -64,7 +65,9 @@ function isMcpServerConstruction(checker: TypeChecker, expression: Expression): 
   const ctor = unwrapExpression(normalized.expression);
   if (!ts.isIdentifier(ctor)) return false;
   const identity = importedIdentity(checker, ctor);
-  return identity !== null && isMcpModule(identity.module);
+  return identity !== null
+    && (identity.imported === "McpServer" || identity.imported === "Server")
+    && isMcpModule(identity.module);
 }
 
 // True when `identifier` is imported as `registerTool` from the MCP SDK's

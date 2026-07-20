@@ -42,11 +42,11 @@ and the scorer rejects any suppression in its JSON report.
 |---|---:|---|
 | `positives/direct` | 6 | OpenAI Responses or Vercel `generateText` output directly reaches `exec`, `execSync`, `eval`, `Function`, or `spawn(..., { shell: true })`. |
 | `positives/concat` | 6 | The same sources reach those sinks through `+` concatenation, including a one-const hop and a concatenation inside a template span. |
-| `positives/tool-arg` | 8 | Vercel `tool({ execute })` and MCP tool-handler parameters reach modeled sinks. |
+| `positives/tool-arg` | 9 | Vercel `tool({ execute })` and MCP tool-handler parameters reach modeled sinks, including one const hop from a single property. |
 | `negatives/sanitized` | 5 | Number conversion, fixed dispatch, allowlisting, validation, and schema parsing produce constrained values before a sink. |
 | `negatives/benign` | 5 | Model output is logged, returned, written, passed as a non-shell argument, or appears beside a static sink call. |
 | `negatives/shadowed` | 5 | Same-named local functions/classes and non-MCP tool registries must not be mistaken for modeled sources or sinks. |
-| `known-gaps` | 8 | Deferred interprocedural, cross-file, second-hop, sanitizer, and deeper tool-property behavior remains visible without overstating v0.1 recall. |
+| `known-gaps` | 7 | Deferred interprocedural, cross-file, second-hop, sanitizer, and deeper tool-property behavior remains visible without overstating v0.1 recall. |
 
 Total: 43 cases.
 
@@ -87,7 +87,9 @@ and a source comment so it survives copying the fixture independently.
 This is a focused regression benchmark, not a prevalence study. Its files are intentionally
 minimal, TypeScript-only, and limited to the providers and sinks declared for v0.1. The scanner
 does not yet perform interprocedural summaries, cross-file taint propagation, propagation beyond
-one const binding, or general method/deep-property propagation. It also does not model sanitizers
+one const binding, or general method/deep-property propagation. A direct tool-parameter property
+supports one const hop (`const command = args.command`), but deeper properties, method calls, and
+second-hop chains remain out of scope. It also does not model sanitizers
 as first-class taint stoppers; the sanitized controls use transformations that produce constrained
 values and are not traced as tainted by the current shallow engine. Additional model providers,
 SARIF output, and richer sanitizer semantics remain future work.

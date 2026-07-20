@@ -151,12 +151,11 @@ suppression reasons.
 | Sources | First parameter of inline MCP SDK `registerTool(...)` and `.tool(...)` handlers | The handler must be inline and the receiver/import must resolve to the `@modelcontextprotocol/sdk` package family. |
 | Sinks | Imported Node `child_process` / `node:child_process` `exec` and `execSync`; unshadowed global `eval`; unshadowed global `Function` calls or construction | Sink matching uses import or global symbol identity, not bare names. |
 | Sinks | Imported Node `child_process` / `node:child_process` `spawn` | Detected only when an inline options object contains literal `shell: true`. |
-| Propagation | Direct flows, template-literal spans, `+` concatenation, and one `const` assignment hop, within the same lexical owner | A tool argument also supports one property access such as `args.cmd`; deeper or method-based access is not modeled. |
+| Propagation | Direct flows, template-literal spans, `+` concatenation, and one `const` assignment hop, within the same lexical owner | A direct tool-parameter property supports one const hop, such as `const command = args.cmd; exec(command)`. Deeper properties, method calls, mutable bindings, and second-hop chains are not modeled. |
 
 Known gaps in v0.1 are interprocedural helper calls, cross-file flows,
 second-hop assignment chains, tool-argument method calls or deep property
-access, the asymmetry where `exec(args.cmd)` is detected but
-`const c = args.cmd; exec(c)` is not, sanitizer modeling, additional model and
+access, sanitizer modeling, additional model and
 tool providers, and SARIF output.
 
 Every finding masks the secret and includes a concrete fix. `preflight` never

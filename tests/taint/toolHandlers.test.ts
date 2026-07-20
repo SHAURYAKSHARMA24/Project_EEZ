@@ -32,6 +32,22 @@ function firstCall(sourceFile: ts.SourceFile, calleeName: string): ts.CallExpres
   return found;
 }
 
+function calls(sourceFile: ts.SourceFile, calleeName: string): ts.CallExpression[] {
+  const found: ts.CallExpression[] = [];
+  const visit = (node: ts.Node): void => {
+    if (ts.isCallExpression(node)) {
+      const callee = node.expression;
+      const name = ts.isIdentifier(callee)
+        ? callee.text
+        : ts.isPropertyAccessExpression(callee) ? callee.name.text : "";
+      if (name === calleeName) found.push(node);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return found;
+}
+
 describe("findToolHandler", () => {
   it("recognizes a Vercel AI SDK tool({ execute }) call", () => {
     const { project, file } = analyze("vercel-tool.ts");
@@ -70,5 +86,35 @@ describe("findToolHandler", () => {
   it("ignores a same-named registerTool imported from an unrelated module", () => {
     const { project, file } = analyze("mcp-bare-register-tool-unrelated.ts");
     expect(findToolHandler(project.checker, firstCall(file.sourceFile, "registerTool"))).toBeNull();
+  });
+
+  it("requires the exact MCP SDK package boundary", () => {
+    for (const [fixture, callee] of [
+      ["mcp-fake-prefix-constructor.ts", "registerTool"],
+      ["mcp-fake-prefix-bare.ts", "registerTool"],
+    ] as const) {
+      const { project, file } = analyze(fixture);
+      expect(findToolHandler(project.checker, firstCall(file.sourceFile, callee))).toBeNull();
+    }
+  });
+
+  it("accepts only McpServer and Server constructors by imported identity", () => {
+    const client = analyze("mcp-client.ts");
+    expect(
+      findToolHandler(client.project.checker, firstCall(client.file.sourceFile, "registerTool")),
+    ).toBeNull();
+
+    const aliased = analyze("mcp-aliased-constructors.ts");
+    const handlers = [
+      ...calls(aliased.file.sourceFile, "registerTool"),
+      ...calls(aliased.file.sourceFile, "tool"),
+    ].map((call) => findToolHandler(aliased.project.checker, call));
+    expect(handlers).toHaveLength(2);
+    expect(handlers.every((handler) => handler?.api === "mcp-tool")).toBe(true);
+  });
+
+  it("requires exactly one object-literal argument for a Vercel tool", () => {
+    const { project, file } = analyze("vercel-extra-argument.ts");
+    expect(findToolHandler(project.checker, firstCall(file.sourceFile, "tool"))).toBeNull();
   });
 });

@@ -8,7 +8,6 @@
     { "path": "known-gaps/sanitizer-modeling.ts", "expected": "clean", "gap": true, "limitation": "Allowlist and validation guards are not modeled as taint-stopping sanitizers in v0.1." },
     { "path": "known-gaps/second-hop.ts", "expected": "clean", "gap": true, "limitation": "Propagation beyond one const binding is deferred to v0.2." },
     { "path": "known-gaps/tool-method-call.ts", "expected": "clean", "gap": true, "limitation": "Method-call transforms on tainted properties are not modeled in v0.1." },
-    { "path": "known-gaps/tool-property-const.ts", "expected": "clean", "gap": true, "limitation": "A tool property assigned to a const is not propagated in v0.1." },
 
     { "path": "negatives/benign/file-write.ts", "expected": "clean" },
     { "path": "negatives/benign/http-response.ts", "expected": "clean" },
@@ -46,6 +45,7 @@
     { "path": "positives/tool-arg/mcp-inline-tool-spawn.ts", "expected": "finding" },
     { "path": "positives/tool-arg/mcp-namespace-exec-sync.ts", "expected": "finding" },
     { "path": "positives/tool-arg/mcp-register-exec.ts", "expected": "finding", "provenance": "Analogous to ios-simulator-mcp CVE-2025-52573: an MCP tool argument reaches child_process.exec." },
+    { "path": "positives/tool-arg/tool-property-const.ts", "expected": "finding" },
     { "path": "positives/tool-arg/vercel-array-function.ts", "expected": "finding" },
     { "path": "positives/tool-arg/vercel-concat-eval.ts", "expected": "finding" },
     { "path": "positives/tool-arg/vercel-destructured-exec.ts", "expected": "finding" },

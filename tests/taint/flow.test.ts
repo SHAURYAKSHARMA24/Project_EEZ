@@ -132,6 +132,33 @@ describe("findFlows", () => {
     expect(flows.every((flow) => flow.api === "tool-parameter" && flow.sinkKind === "exec")).toBe(true);
   });
 
+  it("propagates one direct tool-parameter property through a const", () => {
+    const { project, file } = analyze("tool-property-const.ts");
+    const sources = findSources(project.checker, file);
+    const sinks = findSinks(project.checker, file);
+
+    expect(sources.bindings.filter((binding) => binding.provenance.api === "tool-parameter"))
+      .toHaveLength(2);
+    expect(sinks).toHaveLength(2);
+    expect(findFlows(project.checker, file)).toEqual([
+      { api: "tool-parameter", sinkKind: "exec", sourceLine: 4, sinkLine: 8 },
+      { api: "tool-parameter", sinkKind: "exec", sourceLine: 12, sinkLine: 16 },
+    ]);
+  });
+
+  it("rejects backward, deep, method, unrelated, second-hop, and mutable property flows", () => {
+    const { project, file } = analyze("tool-property-const-negatives.ts");
+    const sources = findSources(project.checker, file);
+    const sinks = findSinks(project.checker, file);
+
+    // Prove the exclusions run inside a real recognized handler with a real
+    // tool-parameter binding and real sinks; an empty result cannot be vacuous.
+    expect(sources.bindings.some((binding) => binding.provenance.api === "tool-parameter"))
+      .toBe(true);
+    expect(sinks).toHaveLength(8);
+    expect(findFlows(project.checker, file)).toEqual([]);
+  });
+
   it("does not treat property access on a non-tool-parameter source as tainted", () => {
     const { project, file } = analyze("non-tool-property-access.ts");
 
