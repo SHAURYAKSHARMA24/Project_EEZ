@@ -145,7 +145,7 @@ suppression reasons.
 
 | Area | Detected in v0.1 | Boundary |
 |---|---|---|
-| Sources | OpenAI Responses API `output_text` | The receiver must come from `new OpenAI().responses.create(...)`; unrelated or shadowed symbols do not match. |
+| Sources | OpenAI Responses API `output_text` | Requires a const-bound client constructed from the default `openai` import, such as `const client = new OpenAI(); client.responses.create(...)`; direct constructor chaining, unrelated, and shadowed symbols do not match. |
 | Sources | Vercel AI SDK `generateText()` text: destructured `{ text }`, `result.text`, or direct `(await generateText(...)).text` | Only the supported `text` shapes are modeled; other properties of a non-destructured result are not tainted. |
 | Sources | First parameter of an inline Vercel AI SDK `tool({ execute: (...) => ... })` handler | Identifier handlers and shorthand `execute` properties are not resolved. |
 | Sources | First parameter of inline MCP SDK `registerTool(...)` and `.tool(...)` handlers | The handler must be inline and the receiver/import must resolve to the `@modelcontextprotocol/sdk` package family. |
@@ -178,11 +178,12 @@ built CLI and runs a separate synthetic 500-file throughput benchmark. The
 individual self-scan is available as `npm run check:self`; the package smoke
 test is `npm run package:smoke`.
 
-After `npm run build`, run `npm run benchmark:corpus` to score the 42-case
+After `npm run build`, run `npm run benchmark:corpus` to score the 43-case
 public corpus in `benchmark/corpus` against `benchmark/expected.json`. The
 scorer validates the JSON v1 report (including `scanComplete: true`), rejects
 suppressions and scan errors, reports per-category and overall precision and
-recall, and lists known-gap cases separately from the scored totals. Run
+recall, and lists known-gap cases—including any detections—separately from the
+scored totals. Run
 `npm run benchmark` for the distinct generated 500-file performance check.
 
 GitHub Actions runs this same workflow for `push` and `pull_request` on Node

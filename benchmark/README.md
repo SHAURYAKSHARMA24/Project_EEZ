@@ -27,8 +27,9 @@ normalizing Windows and POSIX separators.
   path that v0.1 claims to detect.
 - `expected: "clean"` means the file is safe or is deliberately outside the declared v0.1
   scope.
-- `gap: true` is required only for `known-gaps/` cases. These cases remain labeled clean and
-  visible in the output, but are excluded from precision and recall denominators.
+- `gap: true` is required only for `known-gaps/` cases. These cases remain labeled clean;
+  detections are shown in the category's `Found` count but are excluded from precision,
+  recall, and TP/FP/FN/TN totals.
 - `provenance` records a real-world source when a fixture is derived from one. `limitation`
   explains why every known-gap case is deferred.
 
@@ -45,16 +46,16 @@ and the scorer rejects any suppression in its JSON report.
 | `negatives/sanitized` | 5 | Number conversion, fixed dispatch, allowlisting, validation, and schema parsing produce constrained values before a sink. |
 | `negatives/benign` | 5 | Model output is logged, returned, written, passed as a non-shell argument, or appears beside a static sink call. |
 | `negatives/shadowed` | 5 | Same-named local functions/classes and non-MCP tool registries must not be mistaken for modeled sources or sinks. |
-| `known-gaps` | 7 | Deferred interprocedural, cross-file, second-hop, and deeper tool-property propagation remains visible without overstating v0.1 recall. |
+| `known-gaps` | 8 | Deferred interprocedural, cross-file, second-hop, sanitizer, and deeper tool-property behavior remains visible without overstating v0.1 recall. |
 
-Total: 42 cases.
+Total: 43 cases.
 
 ## Scoring and failure policy
 
 Scoring is file-level: one or more findings would mark a file detected, but the current corpus
 requires exactly one finding per positive and rejects duplicate finding paths. The table reports
-TP, FP, FN, TN, precision, and recall by category and overall. Known gaps are printed but excluded
-from the overall totals.
+TP, FP, FN, TN, precision, and recall by category and overall. Known gaps are printed, including
+their detection count, but excluded from scored category and overall totals.
 
 The command fails when:
 

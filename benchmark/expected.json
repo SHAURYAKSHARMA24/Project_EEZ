@@ -5,6 +5,7 @@
     { "path": "known-gaps/cross-file-source.ts", "expected": "clean", "gap": true, "limitation": "Cross-file taint propagation is deferred to v0.2." },
     { "path": "known-gaps/interprocedural-helper.ts", "expected": "clean", "gap": true, "limitation": "Interprocedural helper summaries are deferred to v0.2." },
     { "path": "known-gaps/nested-tool-property.ts", "expected": "clean", "gap": true, "limitation": "Tool-argument property propagation is single-hop in v0.1." },
+    { "path": "known-gaps/sanitizer-modeling.ts", "expected": "clean", "gap": true, "limitation": "Allowlist and validation guards are not modeled as taint-stopping sanitizers in v0.1." },
     { "path": "known-gaps/second-hop.ts", "expected": "clean", "gap": true, "limitation": "Propagation beyond one const binding is deferred to v0.2." },
     { "path": "known-gaps/tool-method-call.ts", "expected": "clean", "gap": true, "limitation": "Method-call transforms on tainted properties are not modeled in v0.1." },
     { "path": "known-gaps/tool-property-const.ts", "expected": "clean", "gap": true, "limitation": "A tool property assigned to a const is not propagated in v0.1." },
