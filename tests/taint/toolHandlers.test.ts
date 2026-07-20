@@ -117,4 +117,31 @@ describe("findToolHandler", () => {
     const { project, file } = analyze("vercel-extra-argument.ts");
     expect(findToolHandler(project.checker, firstCall(file.sourceFile, "tool"))).toBeNull();
   });
+
+  // The MCP callback receives tool arguments as parameter 0 only when the
+  // registration declares an input schema. Without one the SDK passes the
+  // transport `extra` object, which is not model-controlled.
+  it("ignores deprecated tool() registrations that declare no params schema", () => {
+    const { project, file } = analyze("mcp-tool-no-schema.ts");
+    const handlers = calls(file.sourceFile, "tool")
+      .map((call) => findToolHandler(project.checker, call));
+    expect(handlers).toHaveLength(3);
+    expect(handlers.every((handler) => handler === null)).toBe(true);
+  });
+
+  it("recognizes deprecated tool() registrations that do declare a params schema", () => {
+    const { project, file } = analyze("mcp-tool-schema.ts");
+    const handlers = calls(file.sourceFile, "tool")
+      .map((call) => findToolHandler(project.checker, call));
+    expect(handlers).toHaveLength(2);
+    expect(handlers.every((handler) => handler?.api === "mcp-tool")).toBe(true);
+    expect(handlers.every((handler) => handler?.parameterIndex === 0)).toBe(true);
+  });
+
+  it("ignores a registerTool config without inputSchema", () => {
+    const { project, file } = analyze("mcp-register-no-input-schema.ts");
+    expect(
+      findToolHandler(project.checker, firstCall(file.sourceFile, "registerTool")),
+    ).toBeNull();
+  });
 });

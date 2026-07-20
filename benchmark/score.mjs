@@ -13,6 +13,7 @@ const NEGATIVE_CATEGORIES = new Set([
   "negatives/sanitized",
   "negatives/benign",
   "negatives/shadowed",
+  "negatives/no-tool-args",
 ]);
 const CATEGORY_ORDER = [
   ...REQUIRED_POSITIVE_CATEGORIES,

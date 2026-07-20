@@ -79,13 +79,70 @@ function isMcpRegisterToolImport(checker: TypeChecker, identifier: Identifier): 
   return identity !== null && identity.imported === "registerTool" && isMcpModule(identity.module);
 }
 
+// Every field of the SDK's `ToolAnnotations` is a string or boolean, so a
+// property whose value is a plain primitive literal never carries a schema.
+function isAnnotationLiteral(expression: Expression): boolean {
+  const normalized = unwrapExpression(expression);
+  return ts.isStringLiteralLike(normalized)
+    || ts.isNumericLiteral(normalized)
+    || normalized.kind === ts.SyntaxKind.TrueKeyword
+    || normalized.kind === ts.SyntaxKind.FalseKeyword;
+}
+
+// Mirrors the SDK's runtime `isZodRawShapeCompat`: an empty object literal is a
+// valid zero-property raw shape, while a populated one is a raw shape only when
+// some property value is a schema rather than a `ToolAnnotations` literal. The
+// SDK's own types concede that these two shapes cannot be told apart by type
+// alone, so an ambiguous object resolves to "annotations" - trading a missed
+// detection for no false positive.
+function isSchemaObjectLiteral(object: ObjectLiteralExpression): boolean {
+  if (object.properties.length === 0) return true;
+  return object.properties.some((property) =>
+    ts.isShorthandPropertyAssignment(property)
+    || (ts.isPropertyAssignment(property) && !isAnnotationLiteral(property.initializer)));
+}
+
+// `registerTool(name, config, cb)` binds tool arguments to parameter 0 only when
+// `config` declares `inputSchema`; otherwise the callback's first parameter is
+// the transport `extra` object, which is not model-controlled.
+function declaresInputSchema(config: Expression | undefined): boolean {
+  if (!config) return false;
+  const normalized = unwrapExpression(config);
+  if (!ts.isObjectLiteralExpression(normalized)) return false;
+  return normalized.properties.some((property) =>
+    (ts.isPropertyAssignment(property) || ts.isShorthandPropertyAssignment(property))
+    && ts.isIdentifier(property.name)
+    && property.name.text === "inputSchema");
+}
+
+// `<server>.tool(...)` is the SDK's frozen, deprecated registration form. Mirror
+// its own argument parsing: drop the tool name, then an optional string
+// description; whatever remains before the callback begins with the
+// params-schema-or-annotations argument. With nothing left, the tool takes no
+// arguments and parameter 0 is `extra`.
+function deprecatedToolDeclaresSchema(call: CallExpression): boolean {
+  let rest = call.arguments.slice(1, -1);
+  if (rest.length > 0 && rest[0] && ts.isStringLiteralLike(unwrapExpression(rest[0]))) {
+    rest = rest.slice(1);
+  }
+  const schema = rest[0] ? unwrapExpression(rest[0]) : undefined;
+  return schema !== undefined
+    && ts.isObjectLiteralExpression(schema)
+    && isSchemaObjectLiteral(schema);
+}
+
+function mcpHandler(call: CallExpression, declaresSchema: boolean): ToolHandler | null {
+  if (!declaresSchema) return null;
+  const handler = asFunction(call.arguments.at(-1));
+  return handler ? { api: "mcp-tool", handler, parameterIndex: 0 } : null;
+}
+
 function mcpTool(checker: TypeChecker, call: CallExpression): ToolHandler | null {
   const callee = unwrapExpression(call.expression);
 
   // Bare `registerTool(...)` imported directly from the MCP SDK family.
   if (ts.isIdentifier(callee) && isMcpRegisterToolImport(checker, callee)) {
-    const handler = asFunction(call.arguments.at(-1));
-    return handler ? { api: "mcp-tool", handler, parameterIndex: 0 } : null;
+    return mcpHandler(call, declaresInputSchema(call.arguments.at(-2)));
   }
 
   // `<mcpServer>.registerTool(...)` or `<mcpServer>.tool(...)`.
@@ -94,8 +151,12 @@ function mcpTool(checker: TypeChecker, call: CallExpression): ToolHandler | null
     && (callee.name.text === "registerTool" || callee.name.text === "tool")
     && isMcpServerConstruction(checker, resolveReceiverConstruction(checker, callee.expression))
   ) {
-    const handler = asFunction(call.arguments.at(-1));
-    return handler ? { api: "mcp-tool", handler, parameterIndex: 0 } : null;
+    return mcpHandler(
+      call,
+      callee.name.text === "registerTool"
+        ? declaresInputSchema(call.arguments.at(-2))
+        : deprecatedToolDeclaresSchema(call),
+    );
   }
   return null;
 }

@@ -7,6 +7,7 @@
     { "path": "known-gaps/nested-tool-property.ts", "expected": "clean", "gap": true, "limitation": "Tool-argument property propagation is single-hop in v0.1." },
     { "path": "known-gaps/sanitizer-modeling.ts", "expected": "clean", "gap": true, "limitation": "Allowlist and validation guards are not modeled as taint-stopping sanitizers in v0.1." },
     { "path": "known-gaps/second-hop.ts", "expected": "clean", "gap": true, "limitation": "Propagation beyond one const binding is deferred to v0.2." },
+    { "path": "known-gaps/spawn-string-shell.ts", "expected": "clean", "gap": true, "limitation": "Only a literal shell: true marks spawn as a shell sink in v0.1; string shell values are not modeled." },
     { "path": "known-gaps/tool-method-call.ts", "expected": "clean", "gap": true, "limitation": "Method-call transforms on tainted properties are not modeled in v0.1." },
 
     { "path": "negatives/benign/file-write.ts", "expected": "clean" },
@@ -14,6 +15,11 @@
     { "path": "negatives/benign/logging.ts", "expected": "clean" },
     { "path": "negatives/benign/safe-spawn-argument.ts", "expected": "clean" },
     { "path": "negatives/benign/static-shell.ts", "expected": "clean" },
+
+    { "path": "negatives/no-tool-args/mcp-register-no-input-schema.ts", "expected": "clean" },
+    { "path": "negatives/no-tool-args/mcp-tool-annotations.ts", "expected": "clean" },
+    { "path": "negatives/no-tool-args/mcp-tool-description-only.ts", "expected": "clean" },
+    { "path": "negatives/no-tool-args/mcp-tool-zero-arg.ts", "expected": "clean" },
 
     { "path": "negatives/sanitized/allowlist.ts", "expected": "clean" },
     { "path": "negatives/sanitized/fixed-dispatch.ts", "expected": "clean" },

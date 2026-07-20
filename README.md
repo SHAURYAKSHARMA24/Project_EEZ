@@ -148,14 +148,14 @@ suppression reasons.
 | Sources | OpenAI Responses API `output_text` | Requires a const-bound client constructed from the default `openai` import, such as `const client = new OpenAI(); client.responses.create(...)`; direct constructor chaining, unrelated, and shadowed symbols do not match. |
 | Sources | Vercel AI SDK `generateText()` text: destructured `{ text }`, `result.text`, or direct `(await generateText(...)).text` | Only the supported `text` shapes are modeled; other properties of a non-destructured result are not tainted. |
 | Sources | First parameter of an inline Vercel AI SDK `tool({ execute: (...) => ... })` handler | Identifier handlers and shorthand `execute` properties are not resolved. |
-| Sources | First parameter of inline MCP SDK `registerTool(...)` and `.tool(...)` handlers | The handler must be inline and the receiver/import must resolve to the `@modelcontextprotocol/sdk` package family. |
+| Sources | First parameter of inline MCP SDK `registerTool(...)` and `.tool(...)` handlers, when the registration declares tool inputs | The handler must be inline and the receiver/import must resolve to the `@modelcontextprotocol/sdk` package family. `registerTool` requires an `inputSchema` in its config; the deprecated `.tool(...)` requires a params-schema argument. Registrations without one take no tool arguments - their first parameter is the transport `extra` object, so they are not treated as a source. `.tool(name, annotations, cb)` and `.tool(name, schema, cb)` are indistinguishable by type, so an object whose values are all primitive literals is read as annotations. |
 | Sinks | Imported Node `child_process` / `node:child_process` `exec` and `execSync`; unshadowed global `eval`; unshadowed global `Function` calls or construction | Sink matching uses import or global symbol identity, not bare names. |
 | Sinks | Imported Node `child_process` / `node:child_process` `spawn` | Detected only when an inline options object contains literal `shell: true`. |
 | Propagation | Direct flows, template-literal spans, `+` concatenation, and one `const` assignment hop, within the same lexical owner | A direct tool-parameter property supports one const hop, such as `const command = args.cmd; exec(command)`. Deeper properties, method calls, mutable bindings, and second-hop chains are not modeled. |
 
 Known gaps in v0.1 are interprocedural helper calls, cross-file flows,
 second-hop assignment chains, tool-argument method calls or deep property
-access, sanitizer modeling, additional model and
+access, sanitizer modeling, string-valued `shell` options, additional model and
 tool providers, and SARIF output.
 
 Every finding masks the secret and includes a concrete fix. `preflight` never
@@ -178,7 +178,7 @@ includes about 20,000 unrelated calls in clean files. The
 individual self-scan is available as `npm run check:self`; the package smoke
 test is `npm run package:smoke`.
 
-After `npm run build`, run `npm run benchmark:corpus` to score the 43-case
+After `npm run build`, run `npm run benchmark:corpus` to score the 48-case
 public corpus in `benchmark/corpus` against `benchmark/expected.json`. The
 scorer validates the JSON v1 report (including `scanComplete: true`), rejects
 suppressions and scan errors, reports per-category and overall precision and
