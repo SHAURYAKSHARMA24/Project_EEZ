@@ -15,3 +15,7 @@ import { spawn } from "node:child_process";
 export function spawnShell(cmd: string) {
   spawn(cmd, { shell: true });
 }
+
+export function spawnShellWithArgs(cmd: string, args: string[]) {
+  spawn(cmd, args, { shell: true });
+}

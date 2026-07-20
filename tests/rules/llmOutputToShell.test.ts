@@ -50,6 +50,23 @@ describe("llmOutputToShell", () => {
     expect(found[0].fix).not.toContain("execFile");
   });
 
+  it("classifies a shell-spawning spawn(..., { shell: true }) sink as shell execution, not eval", () => {
+    const found = findings("fail-spawn-shell.ts");
+
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({
+      ruleId: "llm-output-to-shell",
+      tier: "check",
+      title: "LLM output reaches shell execution",
+      confidence: "high",
+      source: "Vercel AI SDK generateText().text",
+      sink: "child_process.spawn (shell: true)",
+    });
+    expect(found[0].message).toMatch(/source line \d+.*sink line \d+/);
+    expect(found[0].fix).toContain("execFile");
+    expect(found[0].fix).not.toContain("Parse and validate");
+  });
+
   it("returns no findings without shared analysis or for safe APIs", () => {
     expect(llmOutputToShell.run({
       filePath: "pass.ts",

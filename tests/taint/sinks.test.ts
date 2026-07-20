@@ -31,6 +31,7 @@ describe("findSinks", () => {
       "function-constructor",
       "function-constructor",
       "spawn-shell",
+      "spawn-shell",
     ]);
     expect(found.every((sink) => sink.line > 0)).toBe(true);
     const bodySinks = found.filter((sink) => sink.kind !== "spawn-shell");

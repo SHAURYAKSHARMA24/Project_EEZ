@@ -42,3 +42,7 @@ export function spawnNoShell(cmd: string) {
   spawnSafe(cmd, ["--flag"], { shell: false });
   spawnSafe(cmd, ["--flag"]);
 }
+
+export function spawnNonLiteralShell(cmd: string, shellFlag: boolean) {
+  spawnSafe(cmd, { shell: shellFlag });
+}
