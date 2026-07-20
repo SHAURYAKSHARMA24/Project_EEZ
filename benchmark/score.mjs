@@ -168,11 +168,11 @@ function runScanner() {
     || typeof report.summary.audit !== "number"
     || typeof report.summary.suppressed !== "number"
     || typeof report.summary.total !== "number"
-    || (report.scanComplete !== undefined && typeof report.scanComplete !== "boolean")
+    || report.scanComplete !== true
   ) {
     throw new Error("The built CLI returned a malformed JSON v1 report.");
   }
-  if (report.scanComplete === false || report.errors.length > 0) {
+  if (report.errors.length > 0) {
     throw new Error(`The corpus scan reported scanner errors: ${JSON.stringify(report.errors)}`);
   }
   if (report.suppressed.length > 0 || report.summary.suppressed !== 0) {
