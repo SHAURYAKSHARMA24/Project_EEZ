@@ -68,17 +68,18 @@ The command fails when:
 
 ## Real-world provenance
 
-The four `positives/tool-arg/mcp-*.ts` cases model the MCP command-execution-handler pattern
-associated with mcp-remote [CVE-2025-6514](https://nvd.nist.gov/vuln/detail/CVE-2025-6514):
+`positives/tool-arg/mcp-register-exec.ts` is analogous to ios-simulator-mcp
+[CVE-2025-52573](https://www.cve.org/CVERecord?id=CVE-2025-52573). That vulnerability involved an
+MCP server tool whose untrusted input reached Node.js `child_process.exec`; the benchmark fixture
+captures that source-to-sink shape. It is a minimal analogue, not a reproduction of the affected
+project or its complete `ui_tap` implementation.
 
-- `mcp-bare-function.ts` varies the direct registration API and dynamic-evaluation sink.
-- `mcp-inline-tool-spawn.ts` varies an inline server receiver and shell-enabled spawn.
-- `mcp-namespace-exec-sync.ts` varies the MCP method and namespace-imported sink.
-- `mcp-register-exec.ts` is the canonical destructured command argument reaching `exec`.
-
-The Vercel fixtures model the documented `tool({ execute })` handler shape but are not claimed to
-reproduce a specific vulnerability. Every provenance-bearing case repeats its provenance in the
-manifest and a source comment so it survives copying a fixture independently.
+The other MCP cases (`mcp-bare-function.ts`, `mcp-inline-tool-spawn.ts`, and
+`mcp-namespace-exec-sync.ts`) are synthetic coverage variations for different recognized APIs and
+sinks. They have no CVE provenance and are not claimed to reproduce CVE-2025-52573. The Vercel
+fixtures similarly model the documented `tool({ execute })` handler shape without reproducing a
+specific vulnerability. The one provenance-bearing case repeats its provenance in the manifest
+and a source comment so it survives copying the fixture independently.
 
 ## Limitations
 

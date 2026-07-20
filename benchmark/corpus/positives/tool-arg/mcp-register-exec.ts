@@ -1,4 +1,4 @@
-// Pattern provenance: MCP command-execution handlers, including mcp-remote CVE-2025-6514.
+// Pattern provenance: analogous to ios-simulator-mcp CVE-2025-52573, where an MCP tool argument reaches exec.
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { exec } from "node:child_process";
 

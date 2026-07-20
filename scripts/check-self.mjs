@@ -74,34 +74,44 @@ try {
     ) {
       throw new Error(`The built preflight GitHub-format self-scan was not clean for ${root}.`);
     }
-  }
 
-  const htmlPath = join(tempRoot, "self-scan.html");
-  const htmlResult = spawnSync(process.execPath, [
-    builtCli,
-    "check",
-    "tests",
-    "--format",
-    "json",
-    "--report",
-    "html",
-    "--output",
-    htmlPath,
-  ], {
-    cwd: repoRoot,
-    encoding: "utf8",
-    windowsHide: true,
-  });
-  const html = existsSync(htmlPath) ? readFileSync(htmlPath, "utf8") : "";
-  if (
-    htmlResult.error
-    || htmlResult.status !== 0
-    || JSON.parse(htmlResult.stdout).schemaVersion !== 1
-    || !html.includes("No active findings")
-    || /<(?:script|link|img)\b/i.test(html)
-    || /(?:src|href)=["']https?:/i.test(html)
-  ) {
-    throw new Error("The built preflight HTML self-scan was not clean and self-contained.");
+    const htmlPath = join(tempRoot, `self-scan-${root}.html`);
+    const htmlResult = spawnSync(process.execPath, [
+      builtCli,
+      "check",
+      root,
+      "--format",
+      "json",
+      "--report",
+      "html",
+      "--output",
+      htmlPath,
+    ], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      windowsHide: true,
+    });
+    let htmlReport;
+    try {
+      htmlReport = JSON.parse(htmlResult.stdout);
+    } catch {
+      throw new Error(`The built preflight HTML self-scan did not return valid JSON for ${root}.`);
+    }
+    const html = existsSync(htmlPath) ? readFileSync(htmlPath, "utf8") : "";
+    if (
+      htmlResult.error
+      || htmlResult.status !== 0
+      || htmlReport.schemaVersion !== 1
+      || !Array.isArray(htmlReport.findings)
+      || !Array.isArray(htmlReport.errors)
+      || htmlReport.findings.length !== 0
+      || htmlReport.errors.length !== 0
+      || !html.includes("No active findings")
+      || /<(?:script|link|img)\b/i.test(html)
+      || /(?:src|href)=["']https?:/i.test(html)
+    ) {
+      throw new Error(`The built preflight HTML self-scan was not clean and self-contained for ${root}.`);
+    }
   }
 
   console.log(`Self-scan passed for src and tests (0 active findings, ${suppressionCount} suppression(s)).`);
