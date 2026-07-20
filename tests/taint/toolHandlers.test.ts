@@ -53,4 +53,22 @@ describe("findToolHandler", () => {
     expect(findToolHandler(project.checker, firstCall(file.sourceFile, "tool"))).toBeNull();
     expect(findToolHandler(project.checker, firstCall(file.sourceFile, "registerTool"))).toBeNull();
   });
+
+  it("rejects a receiver reassigned after a non-const declaration", () => {
+    const { project, file } = analyze("mcp-reassigned-receiver.ts");
+    expect(findToolHandler(project.checker, firstCall(file.sourceFile, "tool"))).toBeNull();
+  });
+
+  it("recognizes a bare registerTool import from the MCP SDK package family", () => {
+    const { project, file } = analyze("mcp-bare-register-tool.ts");
+    const handler = findToolHandler(project.checker, firstCall(file.sourceFile, "registerTool"));
+    expect(handler?.api).toBe("mcp-tool");
+    expect(handler?.parameterIndex).toBe(0);
+    expect(handler && ts.isFunctionLike(handler.handler)).toBe(true);
+  });
+
+  it("ignores a same-named registerTool imported from an unrelated module", () => {
+    const { project, file } = analyze("mcp-bare-register-tool-unrelated.ts");
+    expect(findToolHandler(project.checker, firstCall(file.sourceFile, "registerTool"))).toBeNull();
+  });
 });
