@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "path": "negatives/benign/logging.ts",
+      "expected": "clean"
+    },
+    {
+      "path": "positives/direct/openai-exec.ts",
+      "expected": "finding"
+    }
+  ]
+}
