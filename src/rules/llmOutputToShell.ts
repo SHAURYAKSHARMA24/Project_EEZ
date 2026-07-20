@@ -18,9 +18,9 @@ const SINK_LABELS: Record<TaintFlow["sinkKind"], string> = {
 };
 
 const SHELL_FIX =
-  "Use a fixed executable with an allowlisted argument array via execFile, or expose structured tools whose inputs are validated before dispatch.";
+  "Avoid invoking a shell. Use a fixed executable with an allowlisted argument array via execFile or spawn with shell disabled, and validate structured tool inputs before dispatch.";
 const EVALUATOR_FIX =
-  "Do not dynamically evaluate model output. Parse and validate a constrained action, then dispatch only known cases.";
+  "Do not dynamically evaluate model-controlled data. Parse and validate a constrained action, then dispatch only known cases.";
 
 function findings(ctx: RuleContext): Finding[] {
   const file = ctx.analysis?.files.get(ctx.filePath);
@@ -33,7 +33,9 @@ function findings(ctx: RuleContext): Finding[] {
     return {
       ruleId: "llm-output-to-shell",
       tier: "check",
-      title: shell ? "LLM output reaches shell execution" : "LLM output reaches dynamic evaluation",
+      title: shell
+        ? "Model-controlled data reaches shell execution"
+        : "Model-controlled data reaches dynamic evaluation",
       file: ctx.filePath,
       line: flow.sinkLine,
       confidence: "high",
@@ -41,7 +43,7 @@ function findings(ctx: RuleContext): Finding[] {
       sink,
       message:
         `${source} at source line ${flow.sourceLine} flows into ${sink} at sink line ${flow.sinkLine}. `
-        + "Model output can become executable code.",
+        + "Model-controlled data can become executable code.",
       fix: shell ? SHELL_FIX : EVALUATOR_FIX,
     };
   });

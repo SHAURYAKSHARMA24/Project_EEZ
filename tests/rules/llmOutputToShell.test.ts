@@ -57,7 +57,7 @@ describe("llmOutputToShell", () => {
     expect(found[0]).toMatchObject({
       ruleId: "llm-output-to-shell",
       tier: "check",
-      title: "LLM output reaches shell execution",
+      title: "Model-controlled data reaches shell execution",
       confidence: "high",
       source: "Vercel AI SDK generateText().text",
       sink: "child_process.spawn (shell: true)",
@@ -65,6 +65,24 @@ describe("llmOutputToShell", () => {
     expect(found[0].message).toMatch(/source line \d+.*sink line \d+/);
     expect(found[0].fix).toContain("execFile");
     expect(found[0].fix).not.toContain("Parse and validate");
+  });
+
+  it("reports a model-controlled tool argument reaching spawn with a shell", () => {
+    const found = findings("fail-tool-spawn-shell.ts");
+
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({
+      ruleId: "llm-output-to-shell",
+      tier: "check",
+      title: "Model-controlled data reaches shell execution",
+      confidence: "high",
+      source: "AI tool call argument",
+      sink: "child_process.spawn (shell: true)",
+    });
+    expect(found[0].message).toMatch(/source line \d+.*sink line \d+/);
+    expect(found[0].message).toContain("Model-controlled data can become executable code");
+    expect(found[0].fix).toContain("Avoid invoking a shell");
+    expect(found[0].fix).toContain("validate structured tool inputs");
   });
 
   it("returns no findings without shared analysis or for safe APIs", () => {
