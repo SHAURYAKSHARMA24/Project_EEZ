@@ -131,4 +131,20 @@ describe("findFlows", () => {
     expect(flows).toHaveLength(2);
     expect(flows.every((flow) => flow.api === "tool-parameter" && flow.sinkKind === "exec")).toBe(true);
   });
+
+  it("does not treat property access on a non-tool-parameter source as tainted", () => {
+    const { project, file } = analyze("non-tool-property-access.ts");
+
+    // Confirm the fixture genuinely exercises the guard: `text` must actually
+    // be a bound, non-tool-parameter source (not merely absent from
+    // directBindings/oneHopBindings for an unrelated reason).
+    const sources = findSources(project.checker, file);
+    expect(
+      sources.bindings.some(
+        (binding) => binding.symbol.name === "text" && binding.provenance.api === "vercel-generateText",
+      ),
+    ).toBe(true);
+
+    expect(findFlows(project.checker, file)).toEqual([]);
+  });
 });

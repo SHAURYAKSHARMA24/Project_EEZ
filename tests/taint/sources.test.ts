@@ -109,4 +109,10 @@ describe("findSources", () => {
       .sort();
     expect(names).toEqual(["args", "command"]);
   });
+
+  it("emits no tool-parameter bindings for a locally-declared tool/registerTool", () => {
+    const { project, file } = analyze("tool-parameters-negative.ts");
+    const found = findSources(project.checker, file);
+    expect(found.bindings.filter((binding) => binding.provenance.api === "tool-parameter")).toEqual([]);
+  });
 });
