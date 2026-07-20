@@ -14,6 +14,7 @@ const SINK_LABELS: Record<TaintFlow["sinkKind"], string> = {
   execSync: "child_process.execSync",
   eval: "global eval",
   "function-constructor": "global Function",
+  "spawn-shell": "child_process.spawn (shell: true)",
 };
 
 const SHELL_FIX =
@@ -28,7 +29,7 @@ function findings(ctx: RuleContext): Finding[] {
   return findFlows(ctx.analysis.checker, file).map((flow) => {
     const source = SOURCE_LABELS[flow.api];
     const sink = SINK_LABELS[flow.sinkKind];
-    const shell = flow.sinkKind === "exec" || flow.sinkKind === "execSync";
+    const shell = flow.sinkKind === "exec" || flow.sinkKind === "execSync" || flow.sinkKind === "spawn-shell";
     return {
       ruleId: "llm-output-to-shell",
       tier: "check",

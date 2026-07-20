@@ -10,3 +10,8 @@ export function positiveSinks(body: string) {
   Function(body);
   new Function("parameter", body);
 }
+
+import { spawn } from "node:child_process";
+export function spawnShell(cmd: string) {
+  spawn(cmd, { shell: true });
+}
