@@ -32,9 +32,10 @@ preflight --version | -v
 
 Passing a directory without `check` is equivalent to `preflight check <path>`.
 `check` exits 1 for active blocking findings and exits 2 for usage, scan, or
-suppression diagnostics. `audit` reports the same diagnostics but always exits
-0. `--help` and `--version` do not scan and exit 0; using both together is a
-usage error.
+suppression diagnostics. `audit` is non-blocking for findings and exits 0 for
+them, but surfaces the same usage, scan, and suppression diagnostics as
+`check` and exits 2 for those. `--help` and `--version` do not scan and exit
+0; using both together is a usage error.
 
 ### Pre-commit and staged scans
 

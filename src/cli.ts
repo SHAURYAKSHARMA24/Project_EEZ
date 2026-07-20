@@ -27,7 +27,9 @@ const HELP = [
   "",
   "Commands:",
   "  check [path]   Run blocking checks (default command).",
-  "  audit [path]   Run non-blocking review; always exits 0.",
+  "  audit [path]   Run non-blocking review; findings exit 0, but usage, I/O,",
+  "                 parse, rule, suppression, and report-write diagnostics",
+  "                 still exit 2.",
   "  install-hook   Install a staged-only pre-commit hook.",
   "",
   "Flags:",
@@ -99,17 +101,22 @@ function renderOutput(
   findings: import("./types.ts").Finding[],
   errors: RuleError[],
   suppressed: import("./types.ts").Suppression[] = [],
+  scanComplete = true,
 ): string {
-  if (format === "json") return renderJson(findings, errors, suppressed);
+  if (format === "json") return renderJson(findings, errors, suppressed, scanComplete);
   if (format === "github") return renderGithub(findings, errors, suppressed);
   return renderSober(findings, errors, suppressed);
 }
 
-function diagnosticResult(command: Command, format: OutputFormat, message: string): { code: number; output: string } {
+// Operational/diagnostic failures (usage errors, I/O errors, parse failures,
+// rule errors, suppression diagnostics, report-write failures, incomplete
+// scans) always exit 2, in both check and audit mode. Audit only stays
+// non-blocking (exit 0) for findings themselves.
+function diagnosticResult(format: OutputFormat, message: string): { code: number; output: string } {
   const errors: RuleError[] = [{ ruleId: "scanner", file: ".", message }];
   return {
-    code: command === "audit" ? 0 : 2,
-    output: renderOutput(format, [], errors),
+    code: 2,
+    output: renderOutput(format, [], errors, [], false),
   };
 }
 
@@ -152,14 +159,14 @@ export function run(argv: string[], cwd: string): { code: number; output: string
       (explicitFormat !== undefined && !["sober", "json", "github"].includes(explicitFormat))
       || (values.json && explicitFormat !== undefined && explicitFormat !== "json")
     ) {
-      return { code: command === "audit" ? 0 : 2, output: USAGE };
+      return { code: 2, output: USAGE };
     }
     format = values.json ? "json" : (explicitFormat as OutputFormat | undefined) ?? "sober";
     if (
       (values.report === undefined) !== (values.output === undefined)
       || (values.report !== undefined && values.report !== "html")
     ) {
-      return { code: command === "audit" ? 0 : 2, output: USAGE };
+      return { code: 2, output: USAGE };
     }
 
     if (positionals[0] === "install-hook") {
@@ -193,7 +200,7 @@ export function run(argv: string[], cwd: string): { code: number; output: string
 
     const resolution = resolveCommand(positionals, cwd, values.staged);
     if ("usageError" in resolution) {
-      return { code: command === "audit" ? 0 : 2, output: resolution.usageError };
+      return { code: 2, output: resolution.usageError };
     }
     command = resolution.command;
 
@@ -203,14 +210,21 @@ export function run(argv: string[], cwd: string): { code: number; output: string
     const { findings, checkFailures, errors, suppressed } = scanFiles(files, allRules);
 
     const shown = command === "audit" ? findings : findings.filter((f) => f.tier === "check");
+    // Suppression diagnostics (malformed, unknown-rule, stale directives) are
+    // hygiene problems in a scan that ran to completion, so they leave
+    // scanComplete true. Only a scanner abort or a rule that could not read a
+    // file means the scan itself is incomplete.
+    const scanComplete = errors.every((error) => error.ruleId === "suppression");
     if (values.report === "html" && values.output !== undefined) {
       writeFileSync(resolve(cwd, values.output), renderHtml(shown, errors, suppressed), "utf8");
     }
-    const output = renderOutput(format, shown, errors, suppressed);
-    const code = command === "audit" ? 0 : errors.length > 0 ? 2 : checkFailures.length > 0 ? 1 : 0;
+    const output = renderOutput(format, shown, errors, suppressed, scanComplete);
+    // Findings never fail audit mode (non-blocking review); operational and
+    // diagnostic failures reported via `errors` always exit 2, matching check.
+    const code = errors.length > 0 ? 2 : command === "audit" ? 0 : checkFailures.length > 0 ? 1 : 0;
     return { code, output };
   } catch {
-    return diagnosticResult(command, format, "Unable to complete the scan.");
+    return diagnosticResult(format, "Unable to complete the scan.");
   }
 }
 

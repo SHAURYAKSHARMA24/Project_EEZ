@@ -11,6 +11,7 @@ export interface JsonSummaryV1 {
 
 export interface JsonReportV1 {
   schemaVersion: typeof JSON_SCHEMA_VERSION;
+  scanComplete: boolean;
   findings: Finding[];
   errors: RuleError[];
   suppressed: Suppression[];

@@ -83,9 +83,34 @@ async function vulnerable() {
     expect(res.code).toBe(0);
   });
 
-  it("audit always exits 0", () => {
-    const res = run(["audit"], root);
+  it("audit exits 0 for findings", () => {
+    const res = run(["audit", "--json"], root);
+    const payload = JSON.parse(res.output);
     expect(res.code).toBe(0);
+    expect(payload.scanComplete).toBe(true);
+    expect(payload.summary.total).toBeGreaterThan(0);
+  });
+
+  it("audit exits 2 when a scan cannot complete", () => {
+    const res = run(["audit", join(root, "missing"), "--json"], root);
+    const payload = JSON.parse(res.output);
+    expect(res.code).toBe(2);
+    expect(payload.scanComplete).toBe(false);
+    expect(payload.errors).toEqual([
+      { ruleId: "scanner", file: ".", message: "Unable to complete the scan." },
+    ]);
+  });
+
+  it("check mode exit codes and scanComplete are unaffected by the audit contract", () => {
+    const withFindings = run(["check", "--json"], root);
+    const withFindingsPayload = JSON.parse(withFindings.output);
+    expect(withFindings.code).toBe(1);
+    expect(withFindingsPayload.scanComplete).toBe(true);
+
+    const missing = run(["check", join(root, "missing"), "--json"], root);
+    const missingPayload = JSON.parse(missing.output);
+    expect(missing.code).toBe(2);
+    expect(missingPayload.scanComplete).toBe(false);
   });
 
   it("--json emits parseable output", () => {
@@ -104,9 +129,9 @@ async function vulnerable() {
     expect(github.output).toContain("::error file=bad.ts,line=1,title=preflight/hardcoded-credential::");
   });
 
-  it("rejects invalid or conflicting output formats with command-compatible exits", () => {
+  it("rejects invalid or conflicting output formats regardless of command", () => {
     expect(run(["check", "--format", "sarif"], root).code).toBe(2);
-    expect(run(["audit", "--format", "sarif"], root).code).toBe(0);
+    expect(run(["audit", "--format", "sarif"], root).code).toBe(2);
     expect(run(["check", "--json", "--format", "github"], root).code).toBe(2);
   });
 
@@ -135,7 +160,7 @@ async function vulnerable() {
     expect(run(["check", "--report", "html"], root).code).toBe(2);
     expect(run(["check", "--output", "report.html"], root).code).toBe(2);
     expect(run(["check", "--report", "pdf", "--output", "report.pdf"], root).code).toBe(2);
-    expect(run(["audit", "--report", "html"], root).code).toBe(0);
+    expect(run(["audit", "--report", "html"], root).code).toBe(2);
 
     const failed = run([
       "check",
@@ -147,7 +172,25 @@ async function vulnerable() {
       join(root, "missing", "report.html"),
     ], root);
     expect(failed.code).toBe(2);
-    expect(JSON.parse(failed.output).errors).toEqual([
+    const failedPayload = JSON.parse(failed.output);
+    expect(failedPayload.scanComplete).toBe(false);
+    expect(failedPayload.errors).toEqual([
+      { ruleId: "scanner", file: ".", message: "Unable to complete the scan." },
+    ]);
+
+    const auditFailed = run([
+      "audit",
+      "--format",
+      "json",
+      "--report",
+      "html",
+      "--output",
+      join(root, "missing", "report.html"),
+    ], root);
+    expect(auditFailed.code).toBe(2);
+    const auditFailedPayload = JSON.parse(auditFailed.output);
+    expect(auditFailedPayload.scanComplete).toBe(false);
+    expect(auditFailedPayload.errors).toEqual([
       { ruleId: "scanner", file: ".", message: "Unable to complete the scan." },
     ]);
   });
@@ -212,6 +255,9 @@ async function vulnerable() {
       const check = run(["check", "--json"], fixture);
       const checkPayload = JSON.parse(check.output);
       expect(check.code).toBe(2);
+      // A suppression diagnostic is a hygiene problem in a scan that ran to
+      // completion: it blocks (exit 2) but must not claim the scan aborted.
+      expect(checkPayload.scanComplete).toBe(true);
       expect(checkPayload.errors).toEqual([
         { ruleId: "suppression", file: "fixture.ts", message: testCase.message },
       ]);
@@ -219,7 +265,8 @@ async function vulnerable() {
 
       const audit = run(["audit", "--json"], fixture);
       const auditPayload = JSON.parse(audit.output);
-      expect(audit.code).toBe(0);
+      expect(audit.code).toBe(2);
+      expect(auditPayload.scanComplete).toBe(true);
       expect(auditPayload.errors).toEqual(checkPayload.errors);
       expect(audit.output).not.toContain(rawSecret);
     }
@@ -277,23 +324,24 @@ async function vulnerable() {
     const res = run(["check", join(root, "missing"), "--json"], root);
     const parsed = JSON.parse(res.output);
     expect(res.code).toBe(2);
+    expect(parsed.scanComplete).toBe(false);
     expect(parsed.findings).toEqual([]);
     expect(parsed.errors).toEqual([
       { ruleId: "scanner", file: ".", message: "Unable to complete the scan." },
     ]);
   });
 
-  it("keeps audit at exit 0 when setup or argument parsing fails", () => {
+  it("returns exit 2 for audit when setup or argument parsing fails", () => {
     const missing = run(["audit", join(root, "missing")], root);
-    expect(missing.code).toBe(0);
+    expect(missing.code).toBe(2);
     expect(missing.output).not.toContain("No findings");
 
     const malformed = run(["--json", "audit", "--bad-flag"], root);
-    expect(malformed.code).toBe(0);
+    expect(malformed.code).toBe(2);
     expect(malformed.output).not.toContain("No findings");
 
     const tooManyPositionals = run(["audit", root, "extra"], root);
-    expect(tooManyPositionals.code).toBe(0);
+    expect(tooManyPositionals.code).toBe(2);
     expect(tooManyPositionals.output).toContain("Usage: preflight");
   });
 
@@ -341,10 +389,11 @@ async function vulnerable() {
 });
 
 describe("audit exit semantics are order-independent", () => {
-  // audit must always exit 0, whether value-taking flags precede or follow the
-  // command, whether the value is space- or `=`-separated, and whether the
-  // failure is an invalid value, an unknown flag, or a setup mismatch.
-  const auditZero: [string, string[]][] = [
+  // audit must exit 2 for operational/diagnostic failures, whether value-taking
+  // flags precede or follow the command, whether the value is space- or
+  // `=`-separated, and whether the failure is an invalid value, an unknown
+  // flag, or a setup mismatch. Audit only stays at exit 0 for findings.
+  const auditDiagnostics: [string, string[]][] = [
     ["invalid --format value before audit", ["--format", "sarif", "audit"]],
     ["invalid --format=value before audit", ["--format=sarif", "audit"]],
     ["valid --format value then unknown flag", ["--format", "json", "audit", "--bad-flag"]],
@@ -355,8 +404,8 @@ describe("audit exit semantics are order-independent", () => {
     ["--output value before audit without --report", ["--output", "out.html", "audit"]],
     ["--report=value before audit without --output", ["--report=html", "audit"]],
   ];
-  it.each(auditZero)("exits 0 for audit with %s", (_label, argv) => {
-    expect(run(argv, root).code).toBe(0);
+  it.each(auditDiagnostics)("exits 2 for audit with %s", (_label, argv) => {
+    expect(run(argv, root).code).toBe(2);
   });
 
   // The equivalent check invocations must still surface the diagnostic as exit 2.

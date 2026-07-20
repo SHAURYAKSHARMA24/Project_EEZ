@@ -88,6 +88,6 @@ describe("loadStagedFiles", () => {
 
   it("rejects combining staged mode with a path", () => {
     expect(run(["check", ".", "--staged"], root).code).toBe(2);
-    expect(run(["audit", ".", "--staged"], root).code).toBe(0);
+    expect(run(["audit", ".", "--staged"], root).code).toBe(2);
   });
 });

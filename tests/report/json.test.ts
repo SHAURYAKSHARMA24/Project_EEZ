@@ -28,11 +28,18 @@ describe("renderJson", () => {
     const parsed = JSON.parse(renderJson([]));
     expect(parsed).toEqual({
       schemaVersion: 1,
+      scanComplete: true,
       findings: [],
       errors: [],
       suppressed: [],
       summary: { check: 0, audit: 0, suppressed: 0, total: 0 },
     });
+  });
+
+  it("marks scanComplete false when the scan could not fully complete", () => {
+    const error: RuleError = { ruleId: "scanner", file: ".", message: "Unable to complete the scan." };
+    const parsed = JSON.parse(renderJson([], [error], [], false));
+    expect(parsed.scanComplete).toBe(false);
   });
 
   it("includes structured, redacted suppressions in the summary", () => {
