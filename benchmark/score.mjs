@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { dirname, isAbsolute, join, posix, relative, resolve } from "node:path";
+import { dirname, isAbsolute, join, posix, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const BENCHMARK_SCHEMA_VERSION = 1;
@@ -81,6 +81,11 @@ function loadManifest() {
   const labels = new Map();
   for (const [index, entry] of manifest.cases.entries()) {
     if (!isRecord(entry)) throw new Error(`Manifest case ${index} must be an object.`);
+    const allowedKeys = new Set(["path", "expected", "gap", "limitation", "provenance"]);
+    const unknownKeys = Object.keys(entry).filter((key) => !allowedKeys.has(key));
+    if (unknownKeys.length > 0) {
+      throw new Error(`Manifest case ${index} has unknown fields: ${unknownKeys.join(", ")}`);
+    }
     const path = normalizePath(entry.path, `Manifest case ${index} path`);
     if (!path.endsWith(".ts")) throw new Error(`Manifest case path must name a .ts file: ${path}`);
     if (labels.has(path)) throw new Error(`Duplicate manifest path: ${path}`);
@@ -90,11 +95,17 @@ function loadManifest() {
     if (entry.gap !== undefined && entry.gap !== true) {
       throw new Error(`Manifest case ${path} may only set gap to true.`);
     }
+    if (entry.provenance !== undefined && (typeof entry.provenance !== "string" || entry.provenance.length === 0)) {
+      throw new Error(`Manifest case ${path} has an invalid provenance value.`);
+    }
+    if (entry.limitation !== undefined && (typeof entry.limitation !== "string" || entry.limitation.length === 0)) {
+      throw new Error(`Manifest case ${path} has an invalid limitation value.`);
+    }
 
     const category = categoryOf(path);
     if (category === "known-gaps") {
-      if (entry.expected !== "clean" || entry.gap !== true) {
-        throw new Error(`Known-gap case ${path} must be clean with gap:true.`);
+      if (entry.expected !== "clean" || entry.gap !== true || typeof entry.limitation !== "string") {
+        throw new Error(`Known-gap case ${path} must be clean with gap:true and a limitation.`);
       }
     } else if (entry.gap === true) {
       throw new Error(`Only known-gaps cases may set gap:true: ${path}`);
@@ -102,6 +113,15 @@ function loadManifest() {
       throw new Error(`Manifest label does not match category for ${path}.`);
     }
     labels.set(path, { expected: entry.expected, gap: entry.gap === true, category });
+  }
+
+  if (labels.size < 30 || labels.size > 50) {
+    throw new Error(`The public corpus must contain 30-50 cases; found ${labels.size}.`);
+  }
+  for (const category of CATEGORY_ORDER) {
+    if (![...labels.values()].some((label) => label.category === category)) {
+      throw new Error(`The manifest has no cases for required category ${category}.`);
+    }
   }
   return labels;
 }
