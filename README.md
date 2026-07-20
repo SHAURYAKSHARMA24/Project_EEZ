@@ -67,6 +67,7 @@ schema version 1 and always contain these top-level fields:
 ```json
 {
   "schemaVersion": 1,
+  "scanComplete": true,
   "findings": [],
   "errors": [],
   "suppressed": [],
@@ -74,7 +75,9 @@ schema version 1 and always contain these top-level fields:
 }
 ```
 
-Finding locations use repository/scan-root-relative paths and one-based line
+`scanComplete` is `true` only when the scanner completed every requested file;
+consumers must treat a missing or false value as an incomplete result. Finding
+locations use repository/scan-root-relative paths and one-based line
 numbers; `column`, `source`, `sink`, and `masked` are present only when known.
 Suppression records include `ruleId`, `file`, `line`, `directiveLine`, and a
 redacted `reason`. Consumers should ignore unknown fields. Compatible fields
@@ -90,7 +93,8 @@ The exit-code contract is stable:
 
 - `check`: 0 when clean, 1 for active blocking findings, 2 for usage, scan, or
   suppression diagnostics.
-- `audit`: always 0, including when it reports findings or diagnostics.
+- `audit`: 0 when clean or when it reports findings, 2 for usage, scan, or
+  suppression diagnostics.
 - `--help` and `--version`: 0 when used validly.
 - `install-hook`: 0 when installed/already installed, 2 when installation
   cannot be completed safely.
@@ -134,9 +138,26 @@ suppression reasons.
   false positives for ignored local configuration.
 - **Secrets exposed to the browser** - known secrets attached to
   `NEXT_PUBLIC_*` / `VITE_*` variables that ship in the client bundle.
-- **LLM output passed to execution sinks** - OpenAI Responses `output_text` or
-  Vercel AI SDK `generateText().text` flowing directly within a lexical owner
-  to `child_process.exec` / `execSync`, global `eval`, or global `Function`.
+- **Model-controlled data passed to execution sinks** - selected model output
+  and tool-handler arguments flowing to shell or dynamic-code execution.
+
+### v0.1 model-to-execution coverage
+
+| Area | Detected in v0.1 | Boundary |
+|---|---|---|
+| Sources | OpenAI Responses API `output_text` | The receiver must come from `new OpenAI().responses.create(...)`; unrelated or shadowed symbols do not match. |
+| Sources | Vercel AI SDK `generateText()` text: destructured `{ text }`, `result.text`, or direct `(await generateText(...)).text` | Only the supported `text` shapes are modeled; other properties of a non-destructured result are not tainted. |
+| Sources | First parameter of an inline Vercel AI SDK `tool({ execute: (...) => ... })` handler | Identifier handlers and shorthand `execute` properties are not resolved. |
+| Sources | First parameter of inline MCP SDK `registerTool(...)` and `.tool(...)` handlers | The handler must be inline and the receiver/import must resolve to the `@modelcontextprotocol/sdk` package family. |
+| Sinks | Imported Node `child_process` / `node:child_process` `exec` and `execSync`; unshadowed global `eval`; unshadowed global `Function` calls or construction | Sink matching uses import or global symbol identity, not bare names. |
+| Sinks | Imported Node `child_process` / `node:child_process` `spawn` | Detected only when an inline options object contains literal `shell: true`. |
+| Propagation | Direct flows, template-literal spans, `+` concatenation, and one `const` assignment hop, within the same lexical owner | A tool argument also supports one property access such as `args.cmd`; deeper or method-based access is not modeled. |
+
+Known gaps in v0.1 are interprocedural helper calls, cross-file flows,
+second-hop assignment chains, tool-argument method calls or deep property
+access, the asymmetry where `exec(args.cmd)` is detected but
+`const c = args.cmd; exec(c)` is not, sanitizer modeling, additional model and
+tool providers, and SARIF output.
 
 Every finding masks the secret and includes a concrete fix. `preflight` never
 claims your app is secure - it reports only what it is confident about.
@@ -149,12 +170,20 @@ Run the complete self-hosting release check with:
 npm run ci
 ```
 
-It type-checks, tests, builds, verifies `npm pack --dry-run`, installs one
-locally packed tarball, and exercises its bin, JSON v1, GitHub annotations,
-HTML report, staged scan, pre-commit hook, and TypeScript dependency isolation.
-It then scans this repository with the built CLI and checks the 500-file
-benchmark. The individual self-scan is available as `npm run check:self`; the
-package smoke test is `npm run package:smoke`.
+It type-checks, tests, builds, scores the public labeled corpus, verifies
+`npm pack --dry-run`, installs one locally packed tarball, and exercises its
+bin, JSON v1, GitHub annotations, HTML report, staged scan, pre-commit hook,
+and TypeScript dependency isolation. It then scans this repository with the
+built CLI and runs a separate synthetic 500-file throughput benchmark. The
+individual self-scan is available as `npm run check:self`; the package smoke
+test is `npm run package:smoke`.
+
+After `npm run build`, run `npm run benchmark:corpus` to score the 42-case
+public corpus in `benchmark/corpus` against `benchmark/expected.json`. The
+scorer validates the JSON v1 report (including `scanComplete: true`), rejects
+suppressions and scan errors, reports per-category and overall precision and
+recall, and lists known-gap cases separately from the scored totals. Run
+`npm run benchmark` for the distinct generated 500-file performance check.
 
 GitHub Actions runs this same workflow for `push` and `pull_request` on Node
 20 for Ubuntu and Windows, with read-only repository permissions.
