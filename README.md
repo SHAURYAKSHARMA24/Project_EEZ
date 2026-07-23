@@ -1,15 +1,15 @@
-# preflight (working name)
+# EEZ
 
 [![CI](https://github.com/SHAURYAKSHARMA24/Project_EEZ/actions/workflows/ci.yml/badge.svg)](https://github.com/SHAURYAKSHARMA24/Project_EEZ/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Node](https://img.shields.io/badge/node-%E2%89%A520-brightgreen.svg)
 
-Fast, deterministic security preflight for AI-written TypeScript. It installs
+Fast, deterministic security scanning for AI-written TypeScript. EEZ installs
 one pinned TypeScript runtime dependency and runs entirely locally: your code
 never leaves your machine. TypeScript stays external to `dist` and resolves
-from preflight's own installation, never from the project being scanned.
+from EEZ's own installation, never from the project being scanned.
 
-`preflight` is still a working name. This repository is not published to npm.
+EEZ is pre-release software and has not yet been published to npm.
 
 ## Usage
 
@@ -24,13 +24,13 @@ node dist/cli.js --help
 The packaged command accepts:
 
 ```text
-preflight <check|audit> [path] [--staged] [--json | --format sober|json|github] [--report html --output <file>]
-preflight install-hook
-preflight --help | -h
-preflight --version | -v
+eez <check|audit> [path] [--staged] [--json | --format sober|json|github] [--report html --output <file>]
+eez install-hook
+eez --help | -h
+eez --version | -v
 ```
 
-Passing a directory without `check` is equivalent to `preflight check <path>`.
+Passing a directory without `check` is equivalent to `eez check <path>`.
 `check` exits 1 for active blocking findings and exits 2 for usage, scan, or
 suppression diagnostics. `audit` is non-blocking for findings and exits 0 for
 them, but surfaces the same usage, scan, and suppression diagnostics as
@@ -39,7 +39,7 @@ them, but surfaces the same usage, scan, and suppression diagnostics as
 
 ### Pre-commit and staged scans
 
-`preflight check --staged` scans the complete stage-0 blobs in Git's index for
+`eez check --staged` scans the complete stage-0 blobs in Git's index for
 added, copied, modified, and renamed JavaScript/TypeScript files. It does not
 read their working-tree contents, so a partially staged safe file stays safe
 even if its unstaged version is vulnerable. Each staged file is analyzed as a
@@ -49,13 +49,13 @@ complete file in one shared in-memory analysis; a path cannot be combined with
 Install the repository-local hook with:
 
 ```sh
-preflight install-hook
+eez install-hook
 ```
 
-The generated cross-platform Git hook runs `preflight check --staged` before a
+The generated cross-platform Git hook runs `eez check --staged` before a
 commit and blocks on active findings or diagnostics. Installation is
-idempotent. Preflight never overwrites a different existing pre-commit hook;
-in that case, preserve the hook and add `preflight check --staged` to it
+idempotent. EEZ never overwrites a different existing pre-commit hook;
+in that case, preserve the hook and add `eez check --staged` to it
 manually. If dependencies move or are removed, reinstall them and rerun the
 installer. No global installation or hook framework is required.
 
@@ -108,7 +108,7 @@ uses inline CSS only, and contains no scripts or external assets. Dynamic
 content and known secret values are redacted before HTML escaping, just as in
 the sober and JSON reports.
 
-Preflight is fully offline and deterministic. It performs no network requests,
+EEZ is fully offline and deterministic. It performs no network requests,
 uploads, or telemetry in any output mode.
 
 ## Intentional test-fixture suppressions
@@ -117,7 +117,7 @@ Suppress a named rule on exactly the next physical JavaScript or TypeScript
 line with a non-empty reason:
 
 ```ts
-// preflight-ignore-next-line hardcoded-credential,secret-to-browser -- intentional test fixture
+// eez-ignore-next-line hardcoded-credential,secret-to-browser -- intentional test fixture
 const fixtureKey = "...";
 ```
 
@@ -158,7 +158,7 @@ second-hop assignment chains, tool-argument method calls or deep property
 access, sanitizer modeling, string-valued `shell` options, additional model and
 tool providers, and SARIF output.
 
-Every finding masks the secret and includes a concrete fix. `preflight` never
+Every finding masks the secret and includes a concrete fix. EEZ never
 claims your app is secure - it reports only what it is confident about.
 
 ## Verification and CI

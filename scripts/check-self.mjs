@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const builtCli = join(repoRoot, "dist", "cli.js");
-const tempRoot = mkdtempSync(join(tmpdir(), "preflight-self-scan-"));
+const tempRoot = mkdtempSync(join(tmpdir(), "eez-self-scan-"));
 const scanRoots = ["src", "tests"];
 
 if (!existsSync(builtCli)) {
@@ -21,14 +21,14 @@ try {
       windowsHide: true,
     });
     if (result.error || result.status !== 0) {
-      throw new Error(`The built preflight self-scan failed for ${root}.`);
+      throw new Error(`The built EEZ self-scan failed for ${root}.`);
     }
 
     let report;
     try {
       report = JSON.parse(result.stdout);
     } catch {
-      throw new Error(`The built preflight self-scan did not return valid JSON for ${root}.`);
+      throw new Error(`The built EEZ self-scan did not return valid JSON for ${root}.`);
     }
     if (
       report.schemaVersion !== 1
@@ -46,14 +46,14 @@ try {
       || report.summary.total !== 0
       || report.summary.suppressed !== report.suppressed.length
     ) {
-      throw new Error(`The built preflight self-scan did not produce a clean JSON v1 result for ${root}.`);
+      throw new Error(`The built EEZ self-scan did not produce a clean JSON v1 result for ${root}.`);
     }
     return { root, report };
   });
 
   const suppressionCount = reports.reduce((total, { report }) => total + report.summary.suppressed, 0);
   if (suppressionCount <= 0) {
-    throw new Error("The built preflight self-scan did not exercise any suppressions.");
+    throw new Error("The built EEZ self-scan did not exercise any suppressions.");
   }
 
   for (const { root, report } of reports) {
@@ -72,7 +72,7 @@ try {
       || githubOutput.includes("::warning")
       || !suppressionSummary
     ) {
-      throw new Error(`The built preflight GitHub-format self-scan was not clean for ${root}.`);
+      throw new Error(`The built EEZ GitHub-format self-scan was not clean for ${root}.`);
     }
 
     const htmlPath = join(tempRoot, `self-scan-${root}.html`);
@@ -95,7 +95,7 @@ try {
     try {
       htmlReport = JSON.parse(htmlResult.stdout);
     } catch {
-      throw new Error(`The built preflight HTML self-scan did not return valid JSON for ${root}.`);
+      throw new Error(`The built EEZ HTML self-scan did not return valid JSON for ${root}.`);
     }
     const html = existsSync(htmlPath) ? readFileSync(htmlPath, "utf8") : "";
     if (
@@ -110,7 +110,7 @@ try {
       || /<(?:script|link|img)\b/i.test(html)
       || /(?:src|href)=["']https?:/i.test(html)
     ) {
-      throw new Error(`The built preflight HTML self-scan was not clean and self-contained for ${root}.`);
+      throw new Error(`The built EEZ HTML self-scan was not clean and self-contained for ${root}.`);
     }
   }
 

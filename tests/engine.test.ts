@@ -59,7 +59,7 @@ describe("runRules", () => {
   });
 
   it("isolates rule failures without exposing their thrown content", () => {
-    // preflight-ignore-next-line hardcoded-credential -- intentional test fixture
+    // eez-ignore-next-line hardcoded-credential -- intentional test fixture
     const rawSecret = "sk-ABCDEFGHIJKLMNOP1234567890";
     const throwingApplies: Rule = {
       id: "throws-applies",
@@ -92,7 +92,7 @@ describe("runRules", () => {
   });
 
   it("strips unexpected rule-result fields before reporting", () => {
-    // preflight-ignore-next-line hardcoded-credential -- intentional test fixture
+    // eez-ignore-next-line hardcoded-credential -- intentional test fixture
     const rawSecret = "sk-ABCDEFGHIJKLMNOP1234567890";
     const unsafeRule: Rule = {
       id: "unsafe",

@@ -24,12 +24,12 @@ function fakeCli(exitCode: number): void {
 }
 
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), "preflight-hook-"));
+  root = mkdtempSync(join(tmpdir(), "eez-hook-"));
   execFileSync("git", ["init", "-q", root]);
-  git("config", "user.email", "preflight@example.invalid");
-  git("config", "user.name", "Preflight Test");
-  cliPath = join(root, "node_modules", "preflight", "dist", "cli.js");
-  mkdirSync(join(root, "node_modules", "preflight", "dist"), { recursive: true });
+  git("config", "user.email", "eez@example.invalid");
+  git("config", "user.name", "EEZ Test");
+  cliPath = join(root, "node_modules", "project-eez", "dist", "cli.js");
+  mkdirSync(join(root, "node_modules", "project-eez", "dist"), { recursive: true });
   fakeCli(0);
 });
 
@@ -43,9 +43,9 @@ describe("installPreCommitHook", () => {
     const content = readFileSync(first.hookPath, "utf8");
 
     expect(first.status).toBe("installed");
-    expect(content).toContain("preflight-managed-hook v1");
+    expect(content).toContain("eez-managed-hook v1");
     expect(content).toContain("check --staged");
-    expect(content).toContain("node_modules/preflight/dist/cli.js");
+    expect(content).toContain("node_modules/project-eez/dist/cli.js");
     if (process.platform !== "win32") {
       expect(statSync(first.hookPath).mode & 0o111).not.toBe(0);
     }
@@ -62,14 +62,14 @@ describe("installPreCommitHook", () => {
     writeFileSync(hookPath, existing);
 
     expect(() => installPreCommitHook(root)).toThrowError(HookInstallError);
-    expect(() => installPreCommitHook(root)).toThrow(/already exists.*preflight check --staged/i);
+    expect(() => installPreCommitHook(root)).toThrow(/already exists.*eez check --staged/i);
     expect(readFileSync(hookPath, "utf8")).toBe(existing);
   });
 
-  it("requires a repository-local preflight CLI", () => {
+  it("requires a repository-local EEZ CLI", () => {
     rmSync(join(root, "node_modules"), { recursive: true, force: true });
 
-    expect(() => installPreCommitHook(root)).toThrow(/local preflight installation/i);
+    expect(() => installPreCommitHook(root)).toThrow(/local eez installation/i);
   });
 
   it("propagates the installed hook result through a real Git commit", () => {
@@ -93,11 +93,11 @@ describe("installPreCommitHook", () => {
   it("exposes installation through the CLI and rejects scan flags", () => {
     expect(run(["install-hook"], root)).toEqual({
       code: 0,
-      output: "Installed preflight pre-commit hook.",
+      output: "Installed EEZ pre-commit hook.",
     });
     expect(run(["install-hook"], root)).toEqual({
       code: 0,
-      output: "Preflight pre-commit hook is already installed.",
+      output: "EEZ pre-commit hook is already installed.",
     });
     expect(run(["install-hook", "--staged"], root).code).toBe(2);
     expect(run(["install-hook", "--json"], root).code).toBe(2);

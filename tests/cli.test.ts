@@ -16,8 +16,8 @@ function makeTemp(prefix: string): string {
 
 beforeEach(() => {
   tempRoots = [];
-  root = makeTemp("preflight-cli-");
-  // preflight-ignore-next-line hardcoded-credential -- intentional test fixture
+  root = makeTemp("eez-cli-");
+  // eez-ignore-next-line hardcoded-credential -- intentional test fixture
   writeFileSync(join(root, "bad.ts"), 'const k = "sk-ABCDEFGHIJKLMNOP1234567890";');
 });
 afterEach(() => {
@@ -28,7 +28,7 @@ afterEach(() => {
 
 describe("run", () => {
   it("detects OpenAI Responses output reaching exec through the real CLI path", () => {
-    const fixture = makeTemp("preflight-openai-shell-");
+    const fixture = makeTemp("eez-openai-shell-");
     writeFileSync(join(fixture, "vulnerable.ts"), `
 import OpenAI from "openai";
 import { exec } from "node:child_process";
@@ -50,7 +50,7 @@ async function vulnerable() {
   });
 
   it("detects Vercel generateText output reaching exec through the real CLI path", () => {
-    const fixture = makeTemp("preflight-vercel-shell-");
+    const fixture = makeTemp("eez-vercel-shell-");
     writeFileSync(join(fixture, "vulnerable.ts"), `
 import { generateText } from "ai";
 import { exec } from "node:child_process";
@@ -77,7 +77,7 @@ async function vulnerable() {
   });
 
   it("check exits 0 on a clean dir", () => {
-    const clean = makeTemp("preflight-clean-");
+    const clean = makeTemp("eez-clean-");
     writeFileSync(join(clean, "ok.ts"), "export const x = 1;");
     const res = run(["check"], clean);
     expect(res.code).toBe(0);
@@ -126,7 +126,7 @@ async function vulnerable() {
     expect(explicit).toEqual(alias);
     expect(JSON.parse(explicit.output).schemaVersion).toBe(1);
     expect(github.code).toBe(1);
-    expect(github.output).toContain("::error file=bad.ts,line=1,title=preflight/hardcoded-credential::");
+    expect(github.output).toContain("::error file=bad.ts,line=1,title=eez/hardcoded-credential::");
   });
 
   it("rejects invalid or conflicting output formats regardless of command", () => {
@@ -136,7 +136,7 @@ async function vulnerable() {
   });
 
   it("writes a self-contained HTML sidecar without changing stdout or exit status", () => {
-    const reportPath = join(root, "preflight-report.html");
+    const reportPath = join(root, "eez-report.html");
     const result = run([
       "check",
       "--format",
@@ -150,7 +150,7 @@ async function vulnerable() {
 
     expect(result.code).toBe(1);
     expect(JSON.parse(result.output).summary.check).toBe(1);
-    expect(html).toContain("Preflight security report");
+    expect(html).toContain("EEZ security report");
     expect(html).toContain("Hardcoded OpenAI API key");
     expect(html).not.toContain("ABCDEFGHIJKLMNOP1234567890");
     expect(html).not.toMatch(/<(?:script|link|img)\b/i);
@@ -196,16 +196,16 @@ async function vulnerable() {
   });
 
   it("applies named comment suppressions and reports them without reasons", () => {
-    const clean = makeTemp("preflight-suppressed-");
+    const clean = makeTemp("eez-suppressed-");
     const rawSecret = ["sk-", "ABCDEFGHIJKLMNOP1234567890"].join("");
     writeFileSync(
       join(clean, "browser.ts"),
-      `// preflight-ignore-next-line hardcoded-credential,secret-to-browser -- intentional browser fixture\n` +
+      `// eez-ignore-next-line hardcoded-credential,secret-to-browser -- intentional browser fixture\n` +
       `export const config = { NEXT_PUBLIC_KEY: "${rawSecret}" };\n`,
     );
     writeFileSync(
       join(clean, "server.ts"),
-      `// preflight-ignore-next-line hardcoded-credential -- intentional server fixture\n` +
+      `// eez-ignore-next-line hardcoded-credential -- intentional server fixture\n` +
       `export const key = "${rawSecret}";\n`,
     );
 
@@ -232,24 +232,24 @@ async function vulnerable() {
     const rawSecret = ["sk-", "ABCDEFGHIJKLMNOP1234567890"].join("");
     const cases = [
       {
-        directive: "// preflight-ignore-next-line hardcoded-credential --    ",
+        directive: "// eez-ignore-next-line hardcoded-credential --    ",
         target: `const key = "${rawSecret}";`,
-        message: "Malformed preflight suppression directive at line 1.",
+        message: "Malformed EEZ suppression directive at line 1.",
       },
       {
-        directive: "// preflight-ignore-next-line not-a-rule -- intentional fixture",
+        directive: "// eez-ignore-next-line not-a-rule -- intentional fixture",
         target: `const key = "${rawSecret}";`,
-        message: "Unknown preflight suppression rule at line 1.",
+        message: "Unknown EEZ suppression rule at line 1.",
       },
       {
-        directive: "// preflight-ignore-next-line hardcoded-credential -- intentional fixture",
+        directive: "// eez-ignore-next-line hardcoded-credential -- intentional fixture",
         target: "export const value = 1;",
-        message: "Stale preflight suppression at line 1.",
+        message: "Stale EEZ suppression at line 1.",
       },
     ];
 
     for (const testCase of cases) {
-      const fixture = makeTemp("preflight-diagnostic-");
+      const fixture = makeTemp("eez-diagnostic-");
       writeFileSync(join(fixture, "fixture.ts"), `${testCase.directive}\n${testCase.target}\n`);
 
       const check = run(["check", "--json"], fixture);
@@ -275,7 +275,7 @@ async function vulnerable() {
   it("shows help without scanning", () => {
     const long = run(["--help"], root);
     const short = run(["-h"], root);
-    expect(long).toEqual({ code: 0, output: expect.stringContaining("Usage: preflight") });
+    expect(long).toEqual({ code: 0, output: expect.stringContaining("Usage: eez") });
     expect(short).toEqual(long);
   });
 
@@ -287,15 +287,15 @@ async function vulnerable() {
   it("rejects combined help and version flags", () => {
     expect(run(["--help", "--version"], root)).toEqual({
       code: 2,
-      output: "Usage: preflight <check|audit> [path] [--staged] [--json | --format sober|json|github] [--report html --output <file>]",
+      output: "Usage: eez <check|audit> [path] [--staged] [--json | --format sober|json|github] [--report html --output <file>]",
     });
   });
 
   it("treats a directory as an implicit check root relative to the supplied cwd", () => {
-    const syntheticCwd = makeTemp("preflight-cwd-");
+    const syntheticCwd = makeTemp("eez-cwd-");
     const target = join(syntheticCwd, "target");
     mkdirSync(target);
-    // preflight-ignore-next-line hardcoded-credential -- intentional test fixture
+    // eez-ignore-next-line hardcoded-credential -- intentional test fixture
     writeFileSync(join(target, "bad.ts"), 'const k = "sk-ABCDEFGHIJKLMNOP1234567890";');
 
     const res = run(["./target"], syntheticCwd);
@@ -307,12 +307,12 @@ async function vulnerable() {
     const res = run(["frobnicate"], root);
     expect(res).toEqual({
       code: 2,
-      output: "Unknown command \"frobnicate\". Usage: preflight <check|audit> [path] [--staged] [--json | --format sober|json|github] [--report html --output <file>]",
+      output: "Unknown command \"frobnicate\". Usage: eez <check|audit> [path] [--staged] [--json | --format sober|json|github] [--report html --output <file>]",
     });
   });
 
   it("redacts a secret-shaped unknown command", () => {
-    // preflight-ignore-next-line hardcoded-credential -- intentional test fixture
+    // eez-ignore-next-line hardcoded-credential -- intentional test fixture
     const rawSecret = "sk-ABCDEFGHIJKLMNOP1234567890";
     const res = run([rawSecret], root);
     expect(res.code).toBe(2);
@@ -342,19 +342,19 @@ async function vulnerable() {
 
     const tooManyPositionals = run(["audit", root, "extra"], root);
     expect(tooManyPositionals.code).toBe(2);
-    expect(tooManyPositionals.output).toContain("Usage: preflight");
+    expect(tooManyPositionals.output).toContain("Usage: eez");
   });
 
   it("blocks tracked .env secrets but not ignored local values", () => {
-    const repo = makeTemp("preflight-env-");
+    const repo = makeTemp("eez-env-");
     execFileSync("git", ["init", "-q", repo]);
     writeFileSync(join(repo, ".gitignore"), ".env\n");
-    // preflight-ignore-next-line hardcoded-credential -- intentional test fixture
+    // eez-ignore-next-line hardcoded-credential -- intentional test fixture
     writeFileSync(join(repo, ".env"), "SERVER_KEY=sk-ABCDEFGHIJKLMNOP1234567890\n");
 
     expect(run(["check"], repo).code).toBe(0);
 
-    // preflight-ignore-next-line hardcoded-credential,secret-to-browser -- intentional test fixture
+    // eez-ignore-next-line hardcoded-credential,secret-to-browser -- intentional test fixture
     writeFileSync(join(repo, ".env"), "NEXT_PUBLIC_KEY=sk-ABCDEFGHIJKLMNOP1234567890\n");
     const exposed = run(["check"], repo);
     expect(exposed.code).toBe(1);
@@ -363,7 +363,7 @@ async function vulnerable() {
     const trackedSecret = ["sk-", "ABCDEFGHIJKLMNOP1234567890"].join("");
     writeFileSync(
       join(repo, ".env"),
-      "// preflight-ignore-next-line hardcoded-credential -- intentional fixture\n" +
+      "// eez-ignore-next-line hardcoded-credential -- intentional fixture\n" +
       `SERVER_KEY=${trackedSecret}\n`,
     );
     execFileSync("git", ["-C", repo, "add", "-f", ".env"]);
@@ -374,11 +374,11 @@ async function vulnerable() {
   });
 
   it("keeps Git tracking correct when scanning a nested directory", () => {
-    const repo = makeTemp("preflight-nested-");
+    const repo = makeTemp("eez-nested-");
     const nested = join(repo, "packages", "app");
     execFileSync("git", ["init", "-q", repo]);
     mkdirSync(nested, { recursive: true });
-    // preflight-ignore-next-line hardcoded-credential -- intentional test fixture
+    // eez-ignore-next-line hardcoded-credential -- intentional test fixture
     writeFileSync(join(nested, ".env"), "SERVER_KEY=sk-ABCDEFGHIJKLMNOP1234567890\n");
     execFileSync("git", ["-C", repo, "add", "-f", "packages/app/.env"]);
 

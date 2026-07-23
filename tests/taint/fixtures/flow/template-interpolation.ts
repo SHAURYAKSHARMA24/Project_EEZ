@@ -4,7 +4,7 @@ import { generateText } from "ai";
 // Model output interpolated directly into the shell argument is a flow.
 export async function interpolated() {
   const result = await generateText({ prompt: "one" });
-  // preflight-ignore-next-line llm-output-to-shell -- intentional positive M1a fixture
+  // eez-ignore-next-line llm-output-to-shell -- intentional positive M1a fixture
   exec(`deploy ${result.text} now`);
 }
 
@@ -12,7 +12,7 @@ export async function interpolated() {
 export async function aliasedInterpolation() {
   const result = await generateText({ prompt: "two" });
   const command = result.text;
-  // preflight-ignore-next-line llm-output-to-shell -- intentional positive M1a fixture
+  // eez-ignore-next-line llm-output-to-shell -- intentional positive M1a fixture
   exec(`deploy ${command}`);
 }
 

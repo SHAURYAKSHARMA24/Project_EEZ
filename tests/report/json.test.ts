@@ -43,7 +43,7 @@ describe("renderJson", () => {
   });
 
   it("includes structured, redacted suppressions in the summary", () => {
-    // preflight-ignore-next-line hardcoded-credential -- intentional redaction test fixture
+    // eez-ignore-next-line hardcoded-credential -- intentional redaction test fixture
     const rawSecret = "sk-ABCDEFGHIJKLMNOP1234567890";
     const suppression: Suppression = {
       ruleId: "r",

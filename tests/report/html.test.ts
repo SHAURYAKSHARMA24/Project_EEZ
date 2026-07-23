@@ -35,7 +35,7 @@ describe("renderHtml", () => {
     const output = renderHtml([shellFinding, audit], [error], [suppression]);
 
     expect(output).toContain("<!doctype html>");
-    expect(output).toContain("Preflight security report");
+    expect(output).toContain("EEZ security report");
     expect(output).toContain("1 check");
     expect(output).toContain("1 audit");
     expect(output).toContain("1 diagnostic");
@@ -50,7 +50,7 @@ describe("renderHtml", () => {
   });
 
   it("redacts secrets, escapes hostile values, and contains no external resources or scripts", () => {
-    // preflight-ignore-next-line hardcoded-credential -- intentional redaction fixture
+    // eez-ignore-next-line hardcoded-credential -- intentional redaction fixture
     const rawSecret = "sk-ABCDEFGHIJKLMNOP1234567890";
     const hostile: Finding = {
       ...shellFinding,
