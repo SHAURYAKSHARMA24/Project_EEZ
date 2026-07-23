@@ -1,6 +1,6 @@
 # Public taint benchmark
 
-This directory is the versioned public benchmark for preflight's TypeScript
+This directory is the versioned public benchmark for EEZ's TypeScript
 model-controlled-data-to-code-execution rule. The corpus contains small, reviewable source
 files rather than generated projects so each label can be audited directly.
 

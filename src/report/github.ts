@@ -7,7 +7,7 @@ function findingAnnotation(finding: Finding): string {
     `file=${escapeCommandProperty(finding.file)}`,
     `line=${finding.line}`,
     ...(finding.column === undefined ? [] : [`col=${finding.column}`]),
-    `title=${escapeCommandProperty(`preflight/${finding.ruleId}`)}`,
+    `title=${escapeCommandProperty(`eez/${finding.ruleId}`)}`,
   ];
   const message = `${finding.title}: ${finding.message} Fix: ${finding.fix}`;
   return `::${level} ${properties.join(",")}::${escapeCommandData(message)}`;
@@ -16,7 +16,7 @@ function findingAnnotation(finding: Finding): string {
 function errorAnnotation(error: RuleError): string {
   const properties = [
     `file=${escapeCommandProperty(error.file)}`,
-    `title=${escapeCommandProperty(`preflight/${error.ruleId}`)}`,
+    `title=${escapeCommandProperty(`eez/${error.ruleId}`)}`,
   ];
   return `::error ${properties.join(",")}::${escapeCommandData(error.message)}`;
 }

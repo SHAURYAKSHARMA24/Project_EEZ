@@ -2,8 +2,8 @@ import { redactKnownSecrets } from "./redact.ts";
 import type { Finding, RuleError, Suppression } from "./types.ts";
 
 const CODE_FILE = /\.(?:ts|tsx|js|jsx|mjs|cjs)$/;
-const DIRECTIVE_START = /^\s*\/\/\s*preflight-ignore-next-line\b/;
-const DIRECTIVE = /^\s*\/\/\s+preflight-ignore-next-line\s+([a-z][a-z0-9-]*(?:\s*,\s*[a-z][a-z0-9-]*)*)\s+--\s+(.+?)\s*$/;
+const DIRECTIVE_START = /^\s*\/\/\s*eez-ignore-next-line\b/;
+const DIRECTIVE = /^\s*\/\/\s+eez-ignore-next-line\s+([a-z][a-z0-9-]*(?:\s*,\s*[a-z][a-z0-9-]*)*)\s+--\s+(.+?)\s*$/;
 
 function isEnvFile(filePath: string): boolean {
   return filePath.split(/[\\/]/).pop()?.startsWith(".env") === true;
@@ -46,19 +46,19 @@ function parseDirectives(
 
     const match = DIRECTIVE.exec(line);
     if (match === null) {
-      errors.push(diagnostic(filePath, index + 1, "Malformed preflight suppression directive"));
+      errors.push(diagnostic(filePath, index + 1, "Malformed EEZ suppression directive"));
       continue;
     }
 
     const ruleIds = match[1].split(",").map((ruleId) => ruleId.trim());
     const reason = match[2].trim();
     if (reason.length === 0 || new Set(ruleIds).size !== ruleIds.length) {
-      errors.push(diagnostic(filePath, index + 1, "Malformed preflight suppression directive"));
+      errors.push(diagnostic(filePath, index + 1, "Malformed EEZ suppression directive"));
       continue;
     }
 
     if (ruleIds.some((ruleId) => !knownRuleIds.has(ruleId))) {
-      errors.push(diagnostic(filePath, index + 1, "Unknown preflight suppression rule"));
+      errors.push(diagnostic(filePath, index + 1, "Unknown EEZ suppression rule"));
       continue;
     }
 
@@ -91,7 +91,7 @@ export function applySuppressions(
       );
 
       if (matchingFindings.length === 0) {
-        errors.push(diagnostic(filePath, directive.directiveLine, "Stale preflight suppression"));
+        errors.push(diagnostic(filePath, directive.directiveLine, "Stale EEZ suppression"));
         continue;
       }
 

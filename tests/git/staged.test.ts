@@ -28,10 +28,10 @@ void run;
 }
 
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), "preflight-staged-"));
+  root = mkdtempSync(join(tmpdir(), "eez-staged-"));
   execFileSync("git", ["init", "-q", root]);
-  git("config", "user.email", "preflight@example.invalid");
-  git("config", "user.name", "Preflight Test");
+  git("config", "user.email", "eez@example.invalid");
+  git("config", "user.name", "EEZ Test");
 });
 
 afterEach(() => {

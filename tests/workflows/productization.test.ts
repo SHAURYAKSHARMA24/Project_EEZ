@@ -9,7 +9,7 @@ import { run } from "../../src/cli.ts";
 const testRoot = dirname(fileURLToPath(import.meta.url));
 const fixtureRoot = join(testRoot, "fixtures");
 const positivePath = join(testRoot, "..", "corpus", "positives", "openai-exec.ts");
-const directive = /^.*preflight-ignore-next-line llm-output-to-shell -- intentional positive M1a fixture\r?\n/m;
+const directive = /^.*eez-ignore-next-line llm-output-to-shell -- intentional positive M1a fixture\r?\n/m;
 let root: string;
 
 function git(...args: string[]): void {
@@ -24,7 +24,7 @@ function activePositive(): string {
 }
 
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), "preflight-workflow-"));
+  root = mkdtempSync(join(tmpdir(), "eez-workflow-"));
   execFileSync("git", ["init", "-q", root]);
 });
 

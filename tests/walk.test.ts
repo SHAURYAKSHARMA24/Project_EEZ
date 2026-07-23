@@ -6,7 +6,7 @@ import { collectFiles, loadFiles } from "../src/walk.ts";
 
 let root: string;
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), "preflight-"));
+  root = mkdtempSync(join(tmpdir(), "eez-"));
   writeFileSync(join(root, "app.ts"), "const a = 1;");
   writeFileSync(join(root, ".env"), "X=1");
   writeFileSync(join(root, "readme.md"), "# doc");

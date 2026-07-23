@@ -20,8 +20,8 @@ type Command = "check" | "audit";
 type OutputFormat = "sober" | "json" | "github";
 
 const KNOWN_COMMANDS = new Set<Command>(["check", "audit"]);
-const USAGE = "Usage: preflight <check|audit> [path] [--staged] [--json | --format sober|json|github] [--report html --output <file>]";
-const INSTALL_HOOK_USAGE = "Usage: preflight install-hook";
+const USAGE = "Usage: eez <check|audit> [path] [--staged] [--json | --format sober|json|github] [--report html --output <file>]";
+const INSTALL_HOOK_USAGE = "Usage: eez install-hook";
 const HELP = [
   USAGE,
   "",
@@ -185,15 +185,15 @@ export function run(argv: string[], cwd: string): { code: number; output: string
         return {
           code: 0,
           output: installed.status === "installed"
-            ? "Installed preflight pre-commit hook."
-            : "Preflight pre-commit hook is already installed.",
+            ? "Installed EEZ pre-commit hook."
+            : "EEZ pre-commit hook is already installed.",
         };
       } catch (error) {
         return {
           code: 2,
           output: error instanceof HookInstallError
             ? error.message
-            : "Unable to install the preflight hook.",
+            : "Unable to install the EEZ hook.",
         };
       }
     }
@@ -228,7 +228,7 @@ export function run(argv: string[], cwd: string): { code: number; output: string
   }
 }
 
-// npm's bin shims are symlinks on POSIX (node_modules/.bin/preflight -> dist/cli.js).
+// npm's bin shims are symlinks on POSIX (node_modules/.bin/eez -> dist/cli.js).
 // import.meta.url is the resolved real path, so argv[1] must be realpath'd to match.
 function isDirectRun(): boolean {
   const entry = process.argv[1];

@@ -16,19 +16,19 @@ function git(cwd: string, args: string[]): string {
       stdio: ["ignore", "pipe", "ignore"],
     }).trim();
   } catch {
-    throw new HookInstallError("Preflight could not locate a Git worktree.");
+    throw new HookInstallError("EEZ could not locate a Git worktree.");
   }
 }
 
 function localCli(root: string): string {
   const candidates = [
-    join(root, "node_modules", "preflight", "dist", "cli.js"),
+    join(root, "node_modules", "project-eez", "dist", "cli.js"),
     join(root, "dist", "cli.js"),
   ];
   const cli = candidates.find(existsSync);
   if (!cli) {
     throw new HookInstallError(
-      "A repository-local preflight installation is required before installing the hook.",
+      "A repository-local EEZ installation is required before installing the hook.",
     );
   }
   return relative(root, cli).split("\\").join("/");
@@ -37,11 +37,11 @@ function localCli(root: string): string {
 function hookContent(cliPath: string): string {
   return [
     "#!/bin/sh",
-    "# preflight-managed-hook v1",
+    "# eez-managed-hook v1",
     "root=\"$(git rev-parse --show-toplevel)\" || exit 2",
     `cli="$root/${cliPath}"`,
     "if [ ! -f \"$cli\" ]; then",
-    "  echo \"preflight: local CLI is missing; reinstall dependencies or rerun preflight install-hook.\" >&2",
+    "  echo \"eez: local CLI is missing; reinstall dependencies or rerun eez install-hook.\" >&2",
     "  exit 2",
     "fi",
     "exec node \"$cli\" check --staged",
@@ -64,7 +64,7 @@ export function installPreCommitHook(cwd: string): {
       return { status: "already-installed", hookPath };
     }
     throw new HookInstallError(
-      "A different pre-commit hook already exists. Preserve it and add `preflight check --staged` manually.",
+      "A different pre-commit hook already exists. Preserve it and add `eez check --staged` manually.",
     );
   }
 

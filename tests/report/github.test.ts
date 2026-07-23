@@ -27,15 +27,15 @@ describe("renderGithub", () => {
     };
     const output = renderGithub([finding, audit], [error], [suppression]);
 
-    expect(output).toContain("::error file=src/app.ts,line=7,col=3,title=preflight/llm-output-to-shell::");
-    expect(output).toContain("::warning file=src/review.ts,line=7,col=3,title=preflight/review::");
-    expect(output).toContain("::error file=.,title=preflight/scanner::Scan failed.");
+    expect(output).toContain("::error file=src/app.ts,line=7,col=3,title=eez/llm-output-to-shell::");
+    expect(output).toContain("::warning file=src/review.ts,line=7,col=3,title=eez/review::");
+    expect(output).toContain("::error file=.,title=eez/scanner::Scan failed.");
     expect(output).toContain("1 check, 1 audit (2 total), 1 suppression(s), 1 diagnostic(s)");
     expect(output).not.toContain("reason=fixture");
   });
 
   it("escapes command injection characters and redacts known secrets", () => {
-    // preflight-ignore-next-line hardcoded-credential -- intentional redaction fixture
+    // eez-ignore-next-line hardcoded-credential -- intentional redaction fixture
     const rawSecret = "sk-ABCDEFGHIJKLMNOP1234567890";
     const hostile: Finding = {
       ...finding,
@@ -48,7 +48,7 @@ describe("renderGithub", () => {
     const output = renderGithub([hostile]);
 
     expect(output).toContain("file=src/a%3Ab%2Cc%25.ts");
-    expect(output).toContain("title=preflight/rule%3Aone%2Ctwo%25");
+    expect(output).toContain("title=eez/rule%3Aone%2Ctwo%25");
     expect(output).toContain("message%25%0D%0Anext");
     expect(output).toContain("fix%25%0Anow");
     expect(output).not.toContain(rawSecret);

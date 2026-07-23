@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        preflight aims to report only high-confidence security boundaries. Suggestions that keep
+        EEZ aims to report only high-confidence security boundaries. Suggestions that keep
         precision high (few false positives) are the most likely to be adopted.
   - type: textarea
     id: problem
@@ -18,7 +18,7 @@ body:
     id: proposal
     attributes:
       label: Proposed solution
-      description: What would you like preflight to do? Include an example if you can.
+      description: What would you like EEZ to do? Include an example if you can.
     validations:
       required: true
   - type: textarea

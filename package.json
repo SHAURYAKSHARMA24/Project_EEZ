@@ -1,7 +1,7 @@
 {
-  "name": "preflight",
+  "name": "project-eez",
   "version": "0.1.0",
-  "description": "Fast, deterministic security preflight for AI-written TypeScript.",
+  "description": "Fast, deterministic security scanner for AI-written TypeScript.",
   "license": "MIT",
   "type": "module",
   "keywords": [
@@ -11,7 +11,7 @@
     "ai-security",
     "llm",
     "cli",
-    "preflight",
+    "eez",
     "taint-analysis",
     "developer-tools"
   ],
@@ -23,7 +23,7 @@
     "url": "https://github.com/SHAURYAKSHARMA24/Project_EEZ/issues"
   },
   "homepage": "https://github.com/SHAURYAKSHARMA24/Project_EEZ#readme",
-  "bin": { "preflight": "./dist/cli.js" },
+  "bin": { "eez": "./dist/cli.js" },
   "files": ["dist"],
   "engines": { "node": ">=20" },
   "scripts": {

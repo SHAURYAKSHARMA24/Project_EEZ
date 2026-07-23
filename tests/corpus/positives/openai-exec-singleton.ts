@@ -7,7 +7,7 @@ const client = new OpenAI();
 
 async function run() {
   const response = await client.responses.create({ input: "command" });
-  // preflight-ignore-next-line llm-output-to-shell -- intentional positive M1a fixture
+  // eez-ignore-next-line llm-output-to-shell -- intentional positive M1a fixture
   exec(response.output_text);
 }
 

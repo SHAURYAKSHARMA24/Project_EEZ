@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-preflight is pre-release software and has **not** been published to npm. There
+EEZ is pre-release software and has **not** been published to npm. There
 are no released versions yet, so support is limited to the current state of the
 `main` branch. Fixes land on `main`; there is no back-port process while the
 project is unpublished.
@@ -31,7 +31,7 @@ will be prepared privately through a GitHub security advisory and released on
 
 ## Scope
 
-preflight runs entirely locally and performs no network requests. The most
+EEZ runs entirely locally and performs no network requests. The most
 relevant security-sensitive areas are its taint analysis, secret redaction,
 staged-index reads, and the generated pre-commit hook. Reports that show a
 missed high-confidence flow, a secret leak in output, or unsafe hook or Git

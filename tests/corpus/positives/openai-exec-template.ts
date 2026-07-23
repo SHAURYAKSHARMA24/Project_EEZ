@@ -4,7 +4,7 @@ import { exec } from "node:child_process";
 async function vulnerable() {
   const client = new OpenAI();
   const response = await client.responses.create({ input: "command" });
-  // preflight-ignore-next-line llm-output-to-shell -- intentional positive M1a fixture
+  // eez-ignore-next-line llm-output-to-shell -- intentional positive M1a fixture
   exec(`run ${response.output_text}`);
 }
 

@@ -25,7 +25,7 @@ describe("comment suppressions", () => {
   it("suppresses a named rule on the immediately following physical line", () => {
     const result = runRules([{
       path: "fixture.ts",
-      content: "// preflight-ignore-next-line test-rule -- intentional fixture\nconst value = 1;",
+      content: "// eez-ignore-next-line test-rule -- intentional fixture\nconst value = 1;",
       isGitTracked: false,
     }], [findingRule("test-rule")]);
 
@@ -44,7 +44,7 @@ describe("comment suppressions", () => {
   it("supports multiple registered rule IDs in one directive", () => {
     const result = runRules([{
       path: "fixture.ts",
-      content: "// preflight-ignore-next-line first-rule,second-rule -- intentional fixture\nconst value = 1;",
+      content: "// eez-ignore-next-line first-rule,second-rule -- intentional fixture\nconst value = 1;",
       isGitTracked: false,
     }], [findingRule("first-rule"), findingRule("second-rule")]);
 
@@ -59,7 +59,7 @@ describe("comment suppressions", () => {
   it("removes only the rule IDs named by a directive", () => {
     const result = runRules([{
       path: "fixture.ts",
-      content: "// preflight-ignore-next-line first-rule -- intentional fixture\nconst value = 1;",
+      content: "// eez-ignore-next-line first-rule -- intentional fixture\nconst value = 1;",
       isGitTracked: false,
     }], [findingRule("first-rule"), findingRule("second-rule")]);
 
@@ -71,7 +71,7 @@ describe("comment suppressions", () => {
   it("does not reach past the next physical line", () => {
     const result = runRules([{
       path: "fixture.ts",
-      content: "// preflight-ignore-next-line test-rule -- intentional fixture\n\nconst value = 1;",
+      content: "// eez-ignore-next-line test-rule -- intentional fixture\n\nconst value = 1;",
       isGitTracked: false,
     }], [findingRule("test-rule", 3)]);
 
@@ -80,14 +80,14 @@ describe("comment suppressions", () => {
     expect(result.errors).toEqual([{
       ruleId: "suppression",
       file: "fixture.ts",
-      message: "Stale preflight suppression at line 1.",
+      message: "Stale EEZ suppression at line 1.",
     }]);
   });
 
   it.each([
-    "// preflight-ignore-next-line test-rule",
-    "// preflight-ignore-next-line test-rule --    ",
-    "// preflight-ignore-next-line test-rule,test-rule -- intentional fixture",
+    "// eez-ignore-next-line test-rule",
+    "// eez-ignore-next-line test-rule --    ",
+    "// eez-ignore-next-line test-rule,test-rule -- intentional fixture",
   ])("reports malformed directives safely", (directive) => {
     const result = runRules([{
       path: "fixture.ts",
@@ -100,31 +100,31 @@ describe("comment suppressions", () => {
     expect(result.errors).toEqual([{
       ruleId: "suppression",
       file: "fixture.ts",
-      message: "Malformed preflight suppression directive at line 1.",
+      message: "Malformed EEZ suppression directive at line 1.",
     }]);
   });
 
   it("reports unknown and stale directives without echoing their text", () => {
     const unknown = runRules([{
       path: "fixture.ts",
-      content: "// preflight-ignore-next-line not-a-rule -- intentional fixture\nconst value = 1;",
+      content: "// eez-ignore-next-line not-a-rule -- intentional fixture\nconst value = 1;",
       isGitTracked: false,
     }], [findingRule("test-rule")]);
     const stale = runRules([{
       path: "fixture.ts",
-      content: "// preflight-ignore-next-line test-rule -- intentional fixture\nconst value = 1;",
+      content: "// eez-ignore-next-line test-rule -- intentional fixture\nconst value = 1;",
       isGitTracked: false,
     }], [findingRule("test-rule", 3)]);
 
-    expect(unknown.errors[0]?.message).toBe("Unknown preflight suppression rule at line 1.");
-    expect(stale.errors[0]?.message).toBe("Stale preflight suppression at line 1.");
+    expect(unknown.errors[0]?.message).toBe("Unknown EEZ suppression rule at line 1.");
+    expect(stale.errors[0]?.message).toBe("Stale EEZ suppression at line 1.");
     expect(JSON.stringify(unknown.errors)).not.toContain("not-a-rule");
   });
 
   it("does not interpret .env directives as suppressions", () => {
     const result = runRules([{
       path: ".env",
-      content: "// preflight-ignore-next-line test-rule -- intentional fixture\nVALUE=value",
+      content: "// eez-ignore-next-line test-rule -- intentional fixture\nVALUE=value",
       isGitTracked: true,
     }], [findingRule("test-rule")]);
 
@@ -136,7 +136,7 @@ describe("comment suppressions", () => {
   it("does not interpret directives in .env TypeScript variants as suppressions", () => {
     const result = runRules([{
       path: ".env.ts",
-      content: "// preflight-ignore-next-line test-rule -- intentional fixture\nconst value = 1;",
+      content: "// eez-ignore-next-line test-rule -- intentional fixture\nconst value = 1;",
       isGitTracked: true,
     }], [findingRule("test-rule")]);
 
@@ -150,7 +150,7 @@ describe("comment suppressions", () => {
     const result = runRules([{
       path: `fixtures/${rawSecret}/fixture.ts`,
       content:
-        "// preflight-ignore-next-line test-rule -- " + rawSecret + " fixture\nconst value = 1;",
+        "// eez-ignore-next-line test-rule -- " + rawSecret + " fixture\nconst value = 1;",
       isGitTracked: false,
     }], [findingRule("test-rule")]);
 

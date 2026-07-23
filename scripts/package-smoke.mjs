@@ -10,7 +10,7 @@ const npm = process.platform === "win32" ? process.execPath : "npm";
 const npmCliArgs = process.platform === "win32"
   ? [join(dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js")]
   : [];
-const tempRoot = mkdtempSync(join(tmpdir(), "preflight-package-smoke-"));
+const tempRoot = mkdtempSync(join(tmpdir(), "eez-package-smoke-"));
 const cacheRoot = join(tempRoot, "npm-cache");
 
 function runNpm(args, cwd) {
@@ -96,8 +96,8 @@ try {
     installRoot,
   );
 
-  const installedPreflightDir = join(installRoot, "node_modules", "preflight");
-  const installedCli = join(installedPreflightDir, "dist", "cli.js");
+  const installedEezDir = join(installRoot, "node_modules", "project-eez");
+  const installedCli = join(installedEezDir, "dist", "cli.js");
   if (!existsSync(installedCli)) {
     throw new Error("The installed package is missing dist/cli.js.");
   }
@@ -106,18 +106,18 @@ try {
     throw new Error("The installed CLI does not retain its external TypeScript package import.");
   }
 
-  const binName = process.platform === "win32" ? "preflight.cmd" : "preflight";
+  const binName = process.platform === "win32" ? "eez.cmd" : "eez";
   if (!existsSync(join(installRoot, "node_modules", ".bin", binName))) {
-    throw new Error("The installed package did not create the preflight bin entry.");
+    throw new Error("The installed package did not create the EEZ bin entry.");
   }
 
-  const versionOutput = runNpm(["exec", "--", "preflight", "--version"], installRoot);
+  const versionOutput = runNpm(["exec", "--", "eez", "--version"], installRoot);
   if (!versionOutput.includes(packageVersion)) {
-    throw new Error("The installed preflight bin did not report the packaged version.");
+    throw new Error("The installed EEZ bin did not report the packaged version.");
   }
 
   writeFileSync(join(cleanRoot, "clean.ts"), "export const clean = true;\n");
-  runNpm(["exec", "--", "preflight", "check", cleanRoot], installRoot);
+  runNpm(["exec", "--", "eez", "check", cleanRoot], installRoot);
 
   const vulnerableSource = `
 import { generateText } from "ai";
@@ -181,8 +181,8 @@ void vulnerable;
   }
 
   runGit(["init", "-q"], installRoot);
-  runGit(["config", "user.name", "Preflight Smoke"], installRoot);
-  runGit(["config", "user.email", "preflight-smoke@example.invalid"], installRoot);
+  runGit(["config", "user.name", "EEZ Smoke"], installRoot);
+  runGit(["config", "user.email", "eez-smoke@example.invalid"], installRoot);
   const stagedPath = join(installRoot, "staged.ts");
   writeFileSync(stagedPath, vulnerableSource);
   runGit(["add", "staged.ts"], installRoot);
@@ -193,7 +193,7 @@ void vulnerable;
     throw new Error("The installed CLI did not scan the exact staged vulnerability.");
   }
   const hookInstall = runNode([installedCli, "install-hook"], installRoot);
-  if (!hookInstall.stdout.includes("Installed preflight pre-commit hook.")) {
+  if (!hookInstall.stdout.includes("Installed EEZ pre-commit hook.")) {
     throw new Error("The installed CLI did not install its pre-commit hook.");
   }
   const blockedCommit = spawnSync("git", ["commit", "-m", "blocked"], {
@@ -210,13 +210,13 @@ void vulnerable;
   runGit(["add", "staged.ts"], installRoot);
   runGit(["commit", "-q", "-m", "allowed"], installRoot);
 
-  const requireFromPackage = createRequire(join(installedPreflightDir, "package.json"));
+  const requireFromPackage = createRequire(join(installedEezDir, "package.json"));
   const resolvedTypeScript = realpathSync(requireFromPackage.resolve("typescript"));
   const installReal = realpathSync(installRoot);
   const repoReal = realpathSync(repoRoot);
   const allowedTypeScriptRoots = [
     join(installReal, "node_modules", "typescript"),
-    join(installReal, "node_modules", "preflight", "node_modules", "typescript"),
+    join(installReal, "node_modules", "project-eez", "node_modules", "typescript"),
   ].filter(existsSync).map((path) => realpathSync(path));
   if (
     !allowedTypeScriptRoots.some((root) => isWithin(root, resolvedTypeScript))

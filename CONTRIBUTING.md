@@ -1,6 +1,6 @@
-# Contributing to preflight
+# Contributing to EEZ
 
-Thanks for your interest in improving preflight. This is a small,
+Thanks for your interest in improving EEZ. This is a small,
 solo-maintained project, so the process is deliberately lightweight — but
 because it is a security scanner, correctness and precision matter a lot.
 
@@ -58,7 +58,7 @@ and checks the benchmark. It must pass on both Ubuntu and Windows.
 
 ## Security-sensitive changes
 
-preflight's value depends on the precision of its taint analysis, its secret
+EEZ's value depends on the precision of its taint analysis, its secret
 redaction, its staged-index reads, and its pre-commit hook. Changes to any of
 the following require focused regression tests and extra review:
 
@@ -78,7 +78,7 @@ with the built CLI, any fixture that contains a real finding must suppress it
 on the line directly above the finding:
 
 ```ts
-// preflight-ignore-next-line <rule-id> -- intentional positive fixture
+// eez-ignore-next-line <rule-id> -- intentional positive fixture
 exec(modelOutput);
 ```
 

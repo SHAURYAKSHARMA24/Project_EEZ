@@ -9,7 +9,7 @@ const TARGET_MS = 3_000;
 const CEILING_MS = 12_000;
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const builtCli = join(repoRoot, "dist", "cli.js");
-const tempRoot = mkdtempSync(join(tmpdir(), "preflight-benchmark-"));
+const tempRoot = mkdtempSync(join(tmpdir(), "eez-benchmark-"));
 
 try {
   if (!existsSync(builtCli)) {
