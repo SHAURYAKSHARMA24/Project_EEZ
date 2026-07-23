@@ -30,10 +30,13 @@ describe("findSinks", () => {
       "eval",
       "function-constructor",
       "function-constructor",
+      "spawn-shell",
+      "spawn-shell",
     ]);
     expect(found.every((sink) => sink.line > 0)).toBe(true);
-    expect(found.every((sink) => ts.isIdentifier(sink.argument) && sink.argument.text === "body")).toBe(true);
-    const constructed = found.at(-1);
+    const bodySinks = found.filter((sink) => sink.kind !== "spawn-shell");
+    expect(bodySinks.every((sink) => ts.isIdentifier(sink.argument) && sink.argument.text === "body")).toBe(true);
+    const constructed = found.filter((sink) => sink.kind === "function-constructor").at(-1);
     expect(constructed && ts.isNewExpression(constructed.call)).toBe(true);
     expect(constructed?.call.arguments).toHaveLength(2);
     expect(constructed?.argument).toBe(constructed?.call.arguments?.[1]);
@@ -41,5 +44,13 @@ describe("findSinks", () => {
 
   it("rejects genuine local shadows and similar non-sinks", () => {
     expect(sinks("negatives.ts")).toEqual([]);
+  });
+
+  it("flags spawn only when shell:true is present", () => {
+    const found = sinks("positives.ts");
+    expect(found.some((sink) => sink.kind === "spawn-shell")).toBe(true);
+
+    const nFound = sinks("negatives.ts");
+    expect(nFound.some((sink) => sink.kind === "spawn-shell")).toBe(false);
   });
 });

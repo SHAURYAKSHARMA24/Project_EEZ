@@ -36,3 +36,13 @@ export function localShadows() {
 void exec;
 void execSync;
 void cp;
+
+import { spawn as spawnSafe } from "node:child_process";
+export function spawnNoShell(cmd: string) {
+  spawnSafe(cmd, ["--flag"], { shell: false });
+  spawnSafe(cmd, ["--flag"]);
+}
+
+export function spawnNonLiteralShell(cmd: string, shellFlag: boolean) {
+  spawnSafe(cmd, { shell: shellFlag });
+}

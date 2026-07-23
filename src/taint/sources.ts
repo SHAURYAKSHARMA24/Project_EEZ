@@ -1,6 +1,7 @@
 import type { FileAnalysis } from "../ast/analysis.ts";
 import { isImportedAs, nearestOwner, unwrapExpression } from "../ast/symbols.ts";
 import ts from "../ast/ts.ts";
+import { findToolHandler } from "./toolHandlers.ts";
 import type {
   CallExpression,
   Expression,
@@ -11,7 +12,9 @@ import type {
   VariableDeclaration,
 } from "typescript";
 
-export type SourceApi = "openai-responses" | "vercel-generateText";
+const MCP_MODULE_PREFIX = "@modelcontextprotocol/sdk";
+
+export type SourceApi = "openai-responses" | "vercel-generateText" | "tool-parameter";
 
 export interface SourceProvenance {
   api: SourceApi;
@@ -39,6 +42,26 @@ function isConstDeclaration(declaration: VariableDeclaration): boolean {
 
 function symbolOf(checker: TypeChecker, expression: Expression): Symbol | undefined {
   return ts.isIdentifier(expression) ? checker.getSymbolAtLocation(expression) : undefined;
+}
+
+function mayContainToolHandler(sourceFile: SourceFile): boolean {
+  for (const statement of sourceFile.statements) {
+    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) {
+      continue;
+    }
+    const module = statement.moduleSpecifier.text;
+    if (module === MCP_MODULE_PREFIX || module.startsWith(`${MCP_MODULE_PREFIX}/`)) return true;
+    if (module !== "ai") continue;
+    const bindings = statement.importClause?.namedBindings;
+    if (
+      bindings
+      && ts.isNamedImports(bindings)
+      && bindings.elements.some((element) => (element.propertyName ?? element.name).text === "tool")
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function provenance(
@@ -114,6 +137,44 @@ function destructuredTextBindings(
   return bindings;
 }
 
+// Bind the model-controlled parameter of a recognized tool handler as tainted.
+// The parameter may be a plain identifier or an object binding pattern; every
+// bound identifier becomes a tainted binding owned by the handler function, so
+// existing same-owner flow links it to sinks in the handler body.
+function toolParameterBindings(
+  checker: TypeChecker,
+  call: CallExpression,
+  sourceFile: SourceFile,
+): TaintedBinding[] {
+  const handlerInfo = findToolHandler(checker, call);
+  if (!handlerInfo) return [];
+  const parameter = handlerInfo.handler.parameters[handlerInfo.parameterIndex];
+  if (!parameter) return [];
+
+  const position = parameter.getStart(sourceFile);
+  const source: SourceProvenance = {
+    api: "tool-parameter",
+    sourceNode: call,
+    sourceLine: sourceFile.getLineAndCharacterOfPosition(call.getStart(sourceFile)).line + 1,
+    sourcePosition: position,
+    owner: handlerInfo.handler,
+  };
+
+  const bindings: TaintedBinding[] = [];
+  const bind = (name: import("typescript").Node): void => {
+    if (ts.isIdentifier(name)) {
+      const symbol = checker.getSymbolAtLocation(name);
+      if (symbol) bindings.push({ symbol, owner: source.owner, provenance: source });
+    } else if (ts.isObjectBindingPattern(name) || ts.isArrayBindingPattern(name)) {
+      for (const element of name.elements) {
+        if (ts.isBindingElement(element)) bind(element.name);
+      }
+    }
+  };
+  bind(parameter.name);
+  return bindings;
+}
+
 export function findSources(
   checker: TypeChecker,
   file: FileAnalysis,
@@ -124,6 +185,7 @@ export function findSources(
   const openAiClients = new Set<Symbol>();
   const openAiResponses = new Map<Symbol, SourceProvenance>();
   const { sourceFile } = file;
+  const scanToolHandlers = mayContainToolHandler(sourceFile);
 
   const visit = (node: import("typescript").Node): void => {
     if (ts.isVariableDeclaration(node) && isConstDeclaration(node) && node.initializer) {
@@ -173,6 +235,10 @@ export function findSources(
       if (source && source.owner === nearestOwner(node)) {
         origins.push({ expression: node, provenance: source });
       }
+    }
+
+    if (scanToolHandlers && ts.isCallExpression(node)) {
+      bindings.push(...toolParameterBindings(checker, node, sourceFile));
     }
 
     ts.forEachChild(node, visit);

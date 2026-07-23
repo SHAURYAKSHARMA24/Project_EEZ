@@ -34,7 +34,8 @@
     "pack:dry-run": "npm pack --dry-run",
     "package:smoke": "node ./scripts/package-smoke.mjs",
     "benchmark": "node ./scripts/benchmark.mjs",
-    "ci": "npm run typecheck && npm test && npm run build && npm run pack:dry-run && npm run package:smoke && npm run check:self && npm run benchmark"
+    "benchmark:corpus": "node ./benchmark/score.mjs",
+    "ci": "npm run typecheck && npm test && npm run build && npm run benchmark:corpus && npm run pack:dry-run && npm run package:smoke && npm run check:self && npm run benchmark"
   },
   "dependencies": {
     "typescript": "5.9.3"

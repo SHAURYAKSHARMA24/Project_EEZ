@@ -203,7 +203,7 @@ void vulnerable;
   });
   if (blockedCommit.error) throw blockedCommit.error;
   const blockedOutput = `${blockedCommit.stdout}\n${blockedCommit.stderr}`;
-  if (blockedCommit.status === 0 || !blockedOutput.includes("LLM output reaches shell execution")) {
+  if (blockedCommit.status === 0 || !blockedOutput.includes("Model-controlled data reaches shell execution")) {
     throw new Error("The installed pre-commit hook did not block an active staged finding.");
   }
   writeFileSync(stagedPath, "export const safe = true;\n");
