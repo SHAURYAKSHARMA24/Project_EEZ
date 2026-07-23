@@ -38,7 +38,7 @@
     "ci": "npm run typecheck && npm test && npm run build && npm run benchmark:corpus && npm run pack:dry-run && npm run package:smoke && npm run check:self && npm run benchmark"
   },
   "dependencies": {
-    "typescript": "5.9.3"
+    "typescript": "7.0.2"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
